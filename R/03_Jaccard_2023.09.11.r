@@ -9,6 +9,7 @@ library(FactoMineR)
 library(NbClust)
 library(cowplot)
 library(cluster)
+library(ComplexHeatmap)
 
 # dir.create("Output/Rdata/jaccard")
 # dir.create("Output/Figures/jaccard")
@@ -24,6 +25,18 @@ ess <- read.csv("Output/Rdata/04_gbm.killing_2023.09.07.csv")
 
 Idents(gbm.seurat) <- gbm.seurat$NPvNon
 gbm.np <- subset(gbm.seurat, idents = "Neoplastic")
+rm(gbm.seurat)
+gc()
+
+# re-scale expression data on only neoplastic cells
+DefaultAssay(gbm.np) <- "RNA"
+gbm.np <- NormalizeData(gbm.np)
+gbm.np <- FindVariableFeatures(gbm.np, selection.method = "vst")
+gbm.np <- ScaleData(
+  gbm.np,
+  features = ess$Gene,
+  vars.to.regress = c("percent.mt", "S.Score", "G2M.Score")
+)
 
 # extract scaled expression data
 scaled <- as.data.frame(gbm.np@assays$RNA@scale.data)
@@ -65,7 +78,7 @@ mtx <- simil(t(jaccard.input), method = "jaccard") %>%
   as.matrix()
 
 range(mtx, na.rm = TRUE)
-# [1] 0 1
+# [1] 0.0000000 0.6534653
 
 write.csv(
   mtx,
