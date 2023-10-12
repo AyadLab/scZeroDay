@@ -10,6 +10,8 @@ library(NbClust)
 library(cowplot)
 library(cluster)
 
+setwd("/data/mrd/cognitive.seeds")
+
 tumor.mtx <- readRDS(
   "Output/Rdata/jaccard/03_jaccard.mtx_xPT_2023.010.10.RDS"
 )
