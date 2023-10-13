@@ -43,8 +43,8 @@ scaled <- as.data.frame(gbm.np@assays$RNA@scale.data)
 
 # subset for only essential genes
 scaled.ess <- scaled[which(rownames(scaled) %in% ess$Gene), ] # 162/168 ess genes
+
 rm(scaled)
-rm(gbm.np)
 gc()
 
 write.csv(
