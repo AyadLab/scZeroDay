@@ -26,6 +26,30 @@ my.theme <- theme(
 )
 
 ################################################################################
+# GENERATE COLORS FOR HEATMAPS
+
+generate.colors.1 <- function(df) {
+  myne <- list()
+  for (vec in 1:length(colnames(df))) {
+    n_levels <- length(unique(df[, vec]))
+    colors <- viridis::turbo(n_levels)
+    names(colors) <- unique(df[, vec])
+    myne[[length(myne) + 1]] <- colors
+  }
+  return(myne)
+}
+generate.colors <- function(df) {
+  myne <- list()
+  for (vec in 1:length(colnames(df))) {
+    n_levels <- length(unique(df[, vec]))
+    colors <- viridis::mako(n_levels)
+    names(colors) <- unique(df[, vec])
+    myne[[length(myne) + 1]] <- colors
+  }
+  return(myne)
+}
+
+################################################################################
 # READ IN DATA
 
 fin.deg <- read.csv(
@@ -394,3 +418,33 @@ dotplot(
   my.theme
 dev.off()
 
+################################################################################
+# mVC DIMPLOT
+
+Idents(obj) <- obj$mVC
+names <- c("mVC1", "mVC2", "mVC3", "mVC4", "mVC5", "mVC6", "mVC7")
+mVC <- list()
+for (i in 1:length(names)) {
+  cells <- WhichCells(obj, idents = names[i])
+  mVC[[length(mVC) + 1]] <- assign(names[i], cells)
+  rm(cells)
+}
+
+pdf("Output/Figures/14_UMAP_mVC_2023.10.23.pdf", height = 7, width = 7.5)
+DimPlot(
+  obj,
+  group.by = "mVC",
+  cells.highlight = mVC,
+  cols.highlight = viridis_pal(option = "mako")(7),
+  order = TRUE, raster = FALSE
+) +
+  theme(
+    panel.background = element_rect(fill = NA),
+    legend.position = "right",
+    plot.title = element_blank(),
+    axis.line = element_blank(),
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    axis.ticks = element_blank()
+  )
+dev.off()

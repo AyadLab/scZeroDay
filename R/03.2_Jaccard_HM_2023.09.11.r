@@ -8,6 +8,7 @@ library(FactoMineR)
 library(NbClust)
 library(cowplot)
 library(cluster)
+library(ComplexHeatmap)
 
 tumor.mtx <- readRDS(
   "Output/Rdata/jaccard/03_jaccard.mtx_xPT_2023.010.10.RDS"
@@ -189,7 +190,7 @@ clust.rows.2 <- tumor.mtx[[2]] %>%
   dist(method = "euclidean") %>% # compute dissimilarity matrix
   hclust(method = "ward.D2") # hierarchical clustering using Ward's method
 
-ann.col.2 <- data.frame(Cluster = cutree(clust.rows.2, k = 6))
+ann.col.2 <- data.frame(Cluster = cutree(clust.rows.2, k = 9))
 ann.col.2$Cluster <- as.character(ann.col.2$Cluster)
 
 ann.row.2 <- meta.data[which(rownames(meta.data) %in% rownames(tumor.mtx[[2]])), ]
@@ -200,8 +201,6 @@ ann.colors.col <- list(
   phase = generate.colors.3(ann.row.2)[[3]],
   Cluster = generate.colors.1(ann.col.2)[[1]]
 )
-
-library(ComplexHeatmap)
 
 # generate heatmap object
 pdf(paste0("Output/Figures/jaccard/04_", names(tumor.mtx)[2], "_jaccaard.pheatmap_clustered_2023.09.18.pdf"), height = 7, width = 8.2)
@@ -222,12 +221,12 @@ dev.off()
 # generate clustering metadata data frame
 clust.data.2 <- cbind(
   meta.data[which(rownames(meta.data) %in% rownames(tumor.mtx[[2]])), ],
-  cluster = paste0(cutree(clust.rows.2, k = 6), "_", names(tumor.mtx)[2])
+  cluster = paste0(cutree(clust.rows.2, k = 9), "_", names(tumor.mtx)[2])
 )
 
 table(clust.data.2$cluster) # #cells/cluster
-# 1_GBM41 2_GBM41 3_GBM41 4_GBM41 5_GBM41 6_GBM41
-# 2211    1180     762    1115    2177     227
+# 1_GBM41 2_GBM41 3_GBM41 4_GBM41 5_GBM41 6_GBM41 7_GBM41 8_GBM41 9_GBM41
+#    1171    1121    1987     445     683     848     331     765     321
 
 write.csv(
   clust.data.2,
@@ -284,6 +283,18 @@ clust.data.2 %>%
   scale_y_continuous(expand = expansion(mult = c(0, 0.25)))
 dev.off()
 
+pdf(paste0("Output/Figures/jaccard/05_", names(tumor.mtx)[2], "_summary.stats_STATExCLUSTER_2023.09.18.pdf"), height = 7, width = 7)
+clust.data.2 %>%
+  dplyr::count(state, cluster) %>%
+  ggplot(aes(x = factor(state), y = n, fill = factor(cluster))) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  # theme(legend.position = "none") +
+  labs(x = "State", y = "Count", fill = "Cluster") +
+  # geom_text(stat = "identity", aes(label = n), vjust = -0.5, size = 7) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.25)))
+dev.off()
+
 #### TUMOR 3 -------------------------------------------------------------------
 
 # compute clustering via Ward's method
@@ -327,7 +338,7 @@ clust.data.3 <- cbind(
 
 table(clust.data.3$cluster) # #cells/cluster
 # 1_GBM47 2_GBM47 3_GBM47 4_GBM47 5_GBM47 6_GBM47
-#   1299     571     984    1313    1493    1138
+#     993    1387     617     740    1497    1564
 
 write.csv(
   clust.data.3,
@@ -380,6 +391,18 @@ clust.data.3 %>%
   theme_bw() +
   # theme(legend.position = "none") +
   labs(x = "Cluster", y = "Count", fill = "State") +
+  # geom_text(stat = "identity", aes(label = n), vjust = -0.5, size = 7) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.25)))
+dev.off()
+
+pdf(paste0("Output/Figures/jaccard/05_", names(tumor.mtx)[3], "_summary.stats_STATExCLUSTER_2023.09.18.pdf"), height = 7, width = 7)
+clust.data.3 %>%
+  dplyr::count(state, cluster) %>%
+  ggplot(aes(x = factor(state), y = n, fill = factor(cluster))) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  # theme(legend.position = "none") +
+  labs(x = "State", y = "Count", fill = "Cluster") +
   # geom_text(stat = "identity", aes(label = n), vjust = -0.5, size = 7) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.25)))
 dev.off()
@@ -484,6 +507,18 @@ clust.data.4 %>%
   scale_y_continuous(expand = expansion(mult = c(0, 0.25)))
 dev.off()
 
+pdf(paste0("Output/Figures/jaccard/05_", names(tumor.mtx)[4], "_summary.stats_STATExCLUSTER_2023.09.18.pdf"), height = 7, width = 7)
+clust.data.4 %>%
+  dplyr::count(state, cluster) %>%
+  ggplot(aes(x = factor(state), y = n, fill = factor(cluster))) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  # theme(legend.position = "none") +
+  labs(x = "State", y = "Count", fill = "Cluster") +
+  # geom_text(stat = "identity", aes(label = n), vjust = -0.5, size = 7) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.25)))
+dev.off()
+
 #### TUMOR 5 -------------------------------------------------------------------
 
 # compute clustering via Ward's method
@@ -491,7 +526,7 @@ clust.rows.5 <- tumor.mtx[[5]] %>%
   dist(method = "euclidean") %>% # compute dissimilarity matrix
   hclust(method = "ward.D2") # hierarchical clustering using Ward's method
 
-ann.col.5 <- data.frame(Cluster = cutree(clust.rows.5, k = 6))
+ann.col.5 <- data.frame(Cluster = cutree(clust.rows.5, k = 7))
 ann.col.5$Cluster <- as.character(ann.col.5$Cluster)
 
 ann.row.5 <- meta.data[which(rownames(meta.data) %in% rownames(tumor.mtx[[5]])), ]
@@ -522,12 +557,12 @@ dev.off()
 # generate clustering metadata data frame
 clust.data.5 <- cbind(
   meta.data[which(rownames(meta.data) %in% rownames(tumor.mtx[[5]])), ],
-  cluster = paste0(cutree(clust.rows.5, k = 6), "_", names(tumor.mtx)[5])
+  cluster = paste0(cutree(clust.rows.5, k = 7), "_", names(tumor.mtx)[5])
 )
 
 table(clust.data.5$cluster)
-# 1_GBM51 2_GBM51 3_GBM51 4_GBM51 5_GBM51 6_GBM51
-#   1202     998     956    1154     660     118
+# 1_GBM51 2_GBM51 3_GBM51 4_GBM51 5_GBM51 6_GBM51 7_GBM51
+#    1451    1240     980     820     220     328      49
 
 write.csv(
   clust.data.5,
@@ -580,6 +615,18 @@ clust.data.5 %>%
   theme_bw() +
   # theme(legend.position = "none") +
   labs(x = "Cluster", y = "Count", fill = "State") +
+  # geom_text(stat = "identity", aes(label = n), vjust = -0.5, size = 7) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.25)))
+dev.off()
+
+pdf(paste0("Output/Figures/jaccard/05_", names(tumor.mtx)[5], "_summary.stats_STATExCLUSTER_2023.09.18.pdf"), height = 7, width = 7)
+clust.data.5 %>%
+  dplyr::count(state, cluster) %>%
+  ggplot(aes(x = factor(state), y = n, fill = factor(cluster))) +
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  # theme(legend.position = "none") +
+  labs(x = "State", y = "Count", fill = "Cluster") +
   # geom_text(stat = "identity", aes(label = n), vjust = -0.5, size = 7) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.25)))
 dev.off()

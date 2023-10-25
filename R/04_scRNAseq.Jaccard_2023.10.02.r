@@ -62,6 +62,8 @@ saveRDS(
   "Output/Rdata/scRNA/scGBM_NP_xPT_list_2023.09.19.rds"
 )
 
+# gbm.xPT.list <- readRDS("Output/Rdata/scRNA/scGBM_NP_xPT_list_2023.09.19.rds")
+
 
 ################################################################################
 # ADD CLUSTER DATA TO SCRNA-SEQ DATA
@@ -188,8 +190,10 @@ length(unique(deg.master$gene)) # 9233
 
 # filter deg for only essential genes
 deg.ess <- deg.master[which(deg.master$gene %in% ess$Gene), ]
+# only significant
 deg.ess.filt <- deg.ess[which(deg.ess$p_val < 0.05), ]
 # 123 genes remaining / 162
+# there are still duplicate genes (see rownames vs. genes col)
 length(unique(deg.ess.filt$cluster)) # down to 22 clusters
 
 ################################################################################
@@ -228,8 +232,13 @@ mtx2[is.na(mtx2)] <- 0 # should be 1, but to preserve scale on heatmap
 
 write.csv(
   mtx2,
-  "Output/Rdata/jaccard/00_Jaccard.Matrix_2_2023.09.25.csv"
+  "Output/Rdata/jaccard/05_jaccard.matrix_2_2023.09.25.csv"
 )
+
+# mtx.2 <- read.csv(
+#   "Output/Rdata/jaccard/05_jaccard.matrix_2_2023.09.25.csv",
+#   row.names = 1
+# )
 
 ################################################################################
 # CLUSTERING AND PLOTTING
@@ -357,6 +366,10 @@ saveRDS(
   xClust,
   "Output/Rdata/scRNA/scGBM_xClust.Only_2023.09.25.rds"
 )
+
+# xClust <- readRDS(
+#   "Output/Rdata/scRNA/scGBM_xClust.Only_2023.09.25.rds"
+# )
 
 
 #### ASSIGN METADATA TO OBJ AND OBJ.NP AND SAVE BOTH ---------------------------
