@@ -140,7 +140,7 @@ gbm.stats_m <- merge(gbm.stats, gbm.mtx, by = "Gene")
 
 lower <- gbm.stats_m[which(gbm.stats_m$EffectSize < 0), ] # all lower 8930
 sig.lower <- lower[which(lower$q.value < 5e-2), ] # all sig lower 377
-killing <- sig.lower[which(sig.lower$mEffectScore < -0.5), ] # all sig lower w/ killing effect 168
+killing <- sig.lower[which(sig.lower$mEffectScore <= -0.5), ] # all sig lower w/ killing effect 168
 # true <- killing[which(!killing$Gene %in% com.ess), ] # no common essential 23
 
 # save all gene lists

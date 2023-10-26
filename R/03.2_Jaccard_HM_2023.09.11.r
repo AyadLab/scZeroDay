@@ -450,7 +450,7 @@ clust.data.4 <- cbind(
 
 table(clust.data.4$cluster) # #cells/cluster
 # 1_GBM49 2_GBM49 3_GBM49 4_GBM49 5_GBM49 6_GBM49
-#   2433     417    1479    2964     349    1130
+#    2692     494    2508    1710    1121     247
 
 write.csv(
   clust.data.4,

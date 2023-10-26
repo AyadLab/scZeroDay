@@ -180,21 +180,21 @@ deg.master <- rbind(
   deg.6
 )
 
-# 37 clusters to start
-length(unique(deg.master$cluster)) # 33 clusters (4 don't have DEG)
+length(unique(clust.data$cluster)) # 52 clusters to start
 # number of clusters remaining afterr DEG: (good bc no clusters dropped from
 # low cell counts)
-length(unique(deg.master$cluster)) # 75 clusters
+length(unique(deg.master$cluster)) # 52 clusters after deg
 # how many unique genes?
-length(unique(deg.master$gene)) # 9233
+length(unique(deg.master$gene)) # 8553
 
 # filter deg for only essential genes
 deg.ess <- deg.master[which(deg.master$gene %in% ess$Gene), ]
 # only significant
 deg.ess.filt <- deg.ess[which(deg.ess$p_val < 0.05), ]
-# 123 genes remaining / 162
+length(unique(deg.ess.filt$gene))
+# 114 genes remaining / 162
 # there are still duplicate genes (see rownames vs. genes col)
-length(unique(deg.ess.filt$cluster)) # down to 22 clusters
+length(unique(deg.ess.filt$cluster)) # down to 38 clusters...
 
 ################################################################################
 # FINAL MASSAGE AND JACCARD SCORING
@@ -224,9 +224,9 @@ mtx2 <- simil(t(pivot_df), method = "jaccard") %>%
   as.matrix()
 
 range(mtx2, na.rm = TRUE)
-# [1] 0.0000000 1
+# [1] 0 1
 mean(mtx2, na.rm = TRUE)
-# [1] 0.08467153
+# [1] 0.06025712
 
 mtx2[is.na(mtx2)] <- 0 # should be 1, but to preserve scale on heatmap
 
@@ -252,7 +252,7 @@ fviz_nbclust(mtx2, kmeans, method = "wss", k.max = 12) +
 dev.off()
 
 # gap statistic calculation takes too long when too many samples
-gap_stat <- clusGap(mtx2, FUN = kmeans, nstart = 30, K.max = 12, B = 50)
+gap_stat <- clusGap(mtx2, FUN = kmeans, nstart = 30, K.max = 25, B = 50)
 gap <- fviz_gap_stat(gap_stat) +
   theme_minimal() +
   ggtitle("Gap Statistic Method")
@@ -291,7 +291,7 @@ ann.colors.col <- list(
 )
 
 # generate heatmap object
-pdf(paste0("Output/Figures/Analysis/01_Essential.Clusters_Heatmap_2023.09.25.pdf"), height = 7, width = 8.5)
+pdf(paste0("Output/Figures/01_Essential.Clusters_Heatmap_2023.09.25.pdf"), height = 7, width = 8.5)
 pheatmap(
   mtx2,
   color = viridis_pal(direction = -1, option = "magma")(100), #cm.colors(100)
@@ -306,7 +306,7 @@ pheatmap(
 )
 dev.off()
 
-length(rownames(mtx2))
+length(rownames(mtx2)) # 38
 
 
 ################################################################################
@@ -325,13 +325,13 @@ obj.np <- AddMetaData(
 
 # which clusters are missing?
 unique(obj.np$VC)[which(!unique(obj.np$VC) %in% rownames(mtx2))]
-# "2_CID44971"  "5_CID44971"  "3_CID44991"  "11_CID44991" "12_CID44991" "17_CID44991" "8_CID4515"
-missing.vc <- c("2_CID44971", "5_CID44971", "3_CID44991", "11_CID44991", "12_CID44991", "17_CID44991", "8_CID4515")
+#  "1_GBM41" "2_GBM41" "3_GBM41" "2_GBM47" "5_GBM47" "1_GBM49" "3_GBM51" "4_GBM51" "6_GBM51" "1_GBM53" "2_GBM53" "3_GBM53" "7_GBM53" "9_GBM53"
+missing.vc <- c("1_GBM41", "2_GBM41", "3_GBM41", "2_GBM47", "5_GBM47", "1_GBM49", "3_GBM51", "4_GBM51", "6_GBM51", "1_GBM53", "2_GBM53", "3_GBM53", "7_GBM53", "9_GBM53")
 for (i in 1:length(missing.vc)) {
   print(table(obj.np$VC[which(obj.np$VC == missing.vc[i])]))
 }
 
-# get only single cells that have mVC data (bc of 7 dropped clusters)
+# get only single cells that have mVC data (bc of 14 dropped clusters)
 Idents(obj.np) <- obj.np@meta.data$VC
 xClust <- subset(obj.np, idents = rownames(mtx2))
 
@@ -352,12 +352,7 @@ xClust@meta.data <- xClust@meta.data %>%
   mutate(
     mVC = case_when(
       xClust$mVC.pre == 1 ~ "mVC1",
-      xClust$mVC.pre == 2 ~ "mVC2",
-      xClust$mVC.pre == 3 ~ "mVC3",
-      xClust$mVC.pre == 4 ~ "mVC4",
-      xClust$mVC.pre == 5 ~ "mVC5",
-      xClust$mVC.pre == 6 ~ "mVC6",
-      xClust$mVC.pre == 7 ~ "mVC7",
+      xClust$mVC.pre == 2 ~ "mVC2"
     )
   )
 xClust$mVC.pre <- NULL
@@ -396,13 +391,8 @@ obj@meta.data <- obj@meta.data %>%
     mVC = case_when(
       rownames(obj@meta.data) %in% dropped.cells ~ "uncat",
       is.na(obj$pre.mVC) ~ "Non-Neoplastic",
-      obj$pre.mVC == 1 ~ "mVC1",
-      obj$pre.mVC == 2 ~ "mVC2",
-      obj$pre.mVC == 3 ~ "mVC3",
-      obj$pre.mVC == 4 ~ "mVC4",
-      obj$pre.mVC == 5 ~ "mVC5",
-      obj$pre.mVC == 6 ~ "mVC6",
-      obj$pre.mVC == 7 ~ "mVC7",
+      obj$pre.mVC == "mVC1" ~ "mVC1",
+      obj$pre.mVC == "mVC2" ~ "mVC2"
     )
   )
 obj$pre.mVC <- NULL

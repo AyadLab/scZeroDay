@@ -159,7 +159,7 @@ dev.off()
 ################################################################################
 # EXPLORE MVC GENE EXPRESSION PROFILES
 
-pdf("Output/Figures/09_Essential.Clusters_FeaturePlot_EssentialGenes_2023.10.18.pdf", height = 861, width = 49)
+pdf("Output/Figures/09_Essential.Clusters_FeaturePlot_EssentialGenes_2023.10.18.pdf", height = 1176, width = 14)
 FeaturePlot(
   xClust,
   features = ess$Gene,
@@ -188,6 +188,15 @@ VlnPlot(
   geom_boxplot()
 dev.off()
 
+pdf("Output/Figures/11.1_Essential.Clusters_Vln_EssentialGene.Module.Score_2023.10.18.pdf", height = 7, width = 7)
+VlnPlot(
+  obj,
+  features = "ess.MS_1",
+  group.by = "mVC",
+  pt.size = 0
+)
+dev.off()
+
 ################################################################################
 # DIFFERENTIAL EXPRESSION HEATMAP
 
@@ -197,8 +206,8 @@ table(fin.deg.filt$cluster)
 # take top 200 genes for every cluster
 def.genes <- fin.deg.filt %>%
   group_by(cluster) %>%
-  # Use slice_max to select the top 200 genes within each cluster
-  slice_max(order_by = avg_log2FC, n = 200) %>%
+  # Use slice_max to select the top 200 genes in each cluster (just took all)
+  slice_max(order_by = avg_log2FC, n = 232) %>%
   ungroup()
 
 write.csv(
@@ -292,8 +301,8 @@ add.flag <- function(pheatmap,
 }
 
 an.col <- data.frame(
-  row.names = c("mVC1", "mVC2", "mVC3", "mVC4", "mVC5", "mVC6", "mVC7"),
-  mVC = c("mVC1", "mVC2", "mVC3", "mVC4", "mVC5", "mVC6", "mVC7")
+  row.names = c("mVC1", "mVC2"),
+  mVC = c("mVC1", "mVC2")
 )
 an.colors <- list(mVC = generate.colors.1(an.col)[[1]])
 
@@ -321,74 +330,62 @@ dev.off()
 #### FOR ONLY ESSENTIAL GENES --------------------------------------------------
 
 ess.deg <- fin.deg.filt[which(fin.deg.filt$gene %in% ess$Gene), ]
-length(unique(ess.deg$gene)) # 66
-range(ess.deg$avg_log2FC) # 0.2505186 0.8370831
-ess.deg <- ess.deg %>%
-  group_by(cluster) %>%
-  slice_max(order_by = avg_log2FC, n = 200) %>% # using 200 to capture all
-  ungroup()
+length(unique(ess.deg$gene)) # 7
 
-order_vec2 <- match(unique(ess.deg$gene), rownames(avg.clust$RNA))
-sorted_avg.clust.def2 <- avg.clust$RNA[order_vec2, ]
+# THERE ARE ONLY 7 ESSENTIAL GENES THAT ARE DEG BETWEEN BOTH
 
-filt_avg.clust.ess <- sorted_avg.clust.def2[which(rownames(sorted_avg.clust.def2) %in% ess.deg$gene), ]
-
-pdf("Output/Figures/13_Essential.Genes_Heatmap_Clustering_2023.10.18.pdf", height = 10.5, width = 7)
-pheatmap::pheatmap(
-  filt_avg.clust.ess,
-  color = rev(colorRampPalette(brewer.pal(n = 10, name = "RdBu"))(100)),
-  # annotation_row = ess.deg$gene,
-  annotation_col = an.col,
-  annotation_colors = an.colors,
-  cluster_rows = TRUE,
-  cluster_cols = TRUE,
-  show_rownames = TRUE,
-  show_colnames = FALSE,
-  use_raster = TRUE
-)
-dev.off()
-
-pdf("Output/Figures/13_Essential.Genes_Heatmap_noClustering_2023.10.18.pdf", height = 10.5, width = 7)
-pheatmap::pheatmap(
-  filt_avg.clust.ess,
-  color = rev(colorRampPalette(brewer.pal(n = 10, name = "RdBu"))(100)),
-  # annotation_row = ess.deg$gene,
-  annotation_col = an.col,
-  annotation_colors = an.colors,
-  cluster_rows = FALSE,
-  cluster_cols = FALSE,
-  show_rownames = TRUE,
-  show_colnames = FALSE,
-  use_raster = TRUE
-)
-dev.off()
+# range(ess.deg$avg_log2FC) # 0.2505186 0.8370831
+# ess.deg <- ess.deg %>%
+#   group_by(cluster) %>%
+#   slice_max(order_by = avg_log2FC, n = 200) %>% # using 200 to capture all
+#   ungroup()
+#
+# order_vec2 <- match(unique(ess.deg$gene), rownames(avg.clust$RNA))
+# sorted_avg.clust.def2 <- avg.clust$RNA[order_vec2, ]
+#
+# filt_avg.clust.ess <- sorted_avg.clust.def2[which(rownames(sorted_avg.clust.def2) %in% ess.deg$gene), ]
+#
+# pdf("Output/Figures/13_Essential.Genes_Heatmap_Clustering_2023.10.18.pdf", height = 10.5, width = 7)
+# pheatmap::pheatmap(
+#   filt_avg.clust.ess,
+#   color = rev(colorRampPalette(brewer.pal(n = 10, name = "RdBu"))(100)),
+#   # annotation_row = ess.deg$gene,
+#   annotation_col = an.col,
+#   annotation_colors = an.colors,
+#   cluster_rows = TRUE,
+#   cluster_cols = TRUE,
+#   show_rownames = TRUE,
+#   show_colnames = FALSE,
+#   use_raster = TRUE
+# )
+# dev.off()
+#
+# pdf("Output/Figures/13_Essential.Genes_Heatmap_noClustering_2023.10.18.pdf", height = 10.5, width = 7)
+# pheatmap::pheatmap(
+#   filt_avg.clust.ess,
+#   color = rev(colorRampPalette(brewer.pal(n = 10, name = "RdBu"))(100)),
+#   # annotation_row = ess.deg$gene,
+#   annotation_col = an.col,
+#   annotation_colors = an.colors,
+#   cluster_rows = FALSE,
+#   cluster_cols = FALSE,
+#   show_rownames = TRUE,
+#   show_colnames = FALSE,
+#   use_raster = TRUE
+# )
+# dev.off()
 
 ################################################################################
 # ENRICHMENT ANALYSIS
 
-f1 <- fin.deg.filt[which(fin.deg.filt$cluster == "1"), ] %>%
+f1 <- fin.deg.filt[which(fin.deg.filt$cluster == "mVC1"), ] %>%
   arrange(desc(avg_log2FC))
-f2 <- fin.deg.filt[which(fin.deg.filt$cluster == "2"), ] %>%
-  arrange(desc(avg_log2FC))
-f3 <- fin.deg.filt[which(fin.deg.filt$cluster == "3"), ] %>%
-  arrange(desc(avg_log2FC))
-f4 <- fin.deg.filt[which(fin.deg.filt$cluster == "4"), ] %>%
-  arrange(desc(avg_log2FC))
-f5 <- fin.deg.filt[which(fin.deg.filt$cluster == "5"), ] %>%
-  arrange(desc(avg_log2FC))
-f6 <- fin.deg.filt[which(fin.deg.filt$cluster == "6"), ] %>%
-  arrange(desc(avg_log2FC))
-f7 <- fin.deg.filt[which(fin.deg.filt$cluster == "7"), ] %>%
+f2 <- fin.deg.filt[which(fin.deg.filt$cluster == "mVC2"), ] %>%
   arrange(desc(avg_log2FC))
 
 clust.list <- list(
   mVC1 = f1$gene,
-  mVC2 = f2$gene,
-  mVC3 = f3$gene,
-  mVC4 = f4$gene,
-  mVC5 = f5$gene,
-  mVC6 = f6$gene,
-  mVC7 = f7$gene
+  mVC2 = f2$gene
 )
 
 msigdb <- msigdbr(species = "Homo sapiens", category = "H")
@@ -422,7 +419,7 @@ dev.off()
 # mVC DIMPLOT
 
 Idents(obj) <- obj$mVC
-names <- c("mVC1", "mVC2", "mVC3", "mVC4", "mVC5", "mVC6", "mVC7")
+names <- c("mVC1", "mVC2")
 mVC <- list()
 for (i in 1:length(names)) {
   cells <- WhichCells(obj, idents = names[i])
@@ -433,6 +430,7 @@ for (i in 1:length(names)) {
 pdf("Output/Figures/14_UMAP_mVC_2023.10.23.pdf", height = 7, width = 7.5)
 DimPlot(
   obj,
+  reduction = "umap",
   group.by = "mVC",
   cells.highlight = mVC,
   cols.highlight = viridis_pal(option = "mako")(7),
@@ -448,3 +446,6 @@ DimPlot(
     axis.ticks = element_blank()
   )
 dev.off()
+
+
+
