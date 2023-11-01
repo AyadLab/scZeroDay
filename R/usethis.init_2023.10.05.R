@@ -69,8 +69,8 @@ usethis::create_package(path)
 
 #### clone from GitHub ---------------------------------------------------------
 
-create_from_github(
-  "git@github.com:MatthewDAntuono/basal.leaves.git",
+usethis::create_from_github(
+  "git@github.com:MatthewDAntuono/cognitive.seeds.git",
   destdir = "/data/mrd",
   fork = FALSE,
   protocol = "ssh"
@@ -78,3 +78,14 @@ create_from_github(
 
 # alternative if above doesn't work (esp on quorra)
 # git clone https://github.com/MatthewDAntuono/basal.leaves.git
+
+# to create a new branch once cloned, then push repo as cloned to that branch
+# git checkout -b NAME OF BRANCH
+# git push origin NAME OF BRANCH
+# git branch -r # to list out branches
+# git branch --show-current # to show what branch you are currenlty working on
+
+# in terminal this needs to be done to **switch** to ssh -- actually
+# just paste ssh above instead
+# [mrd152@quorra basal.leaves]$ git remote set-url origin git@github.com:MatthewDAntuono/basal.leaves.git
+# [mrd152@quorra basal.leaves]$ git remote -v
