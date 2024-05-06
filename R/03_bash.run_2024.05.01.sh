@@ -2,7 +2,7 @@
 
 source /home/matt/.bashrc
 
-cd /data/mrd/cognitive.seeds_fin/R
+cd /data/mrd/cognitive.seeds_zero/R
 
 if command -v Rscript > /dev/null; then
 

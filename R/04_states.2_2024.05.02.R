@@ -48,7 +48,7 @@ generate.colors <- function(df) {
   myne <- list()
   for (vec in 1:length(colnames(df))) {
     n_levels <- length(unique(df[, vec]))
-    colors <- viridis_pal(option = "turbo")(n_levels)
+    colors <- DiscretePalette(n_levels, palette = "parade")
     names(colors) <- unique(df[, vec])
     myne[[length(myne) + 1]] <- colors
   }
@@ -59,7 +59,7 @@ generate.colors_states <- function(df) {
   myne <- list()
   for (vec in 1:length(colnames(df))) {
     n_levels <- length(unique(df[, vec]))
-    colors <- DiscretePalette(n_levels+1, palette = "parade")
+    colors <- viridis_pal(option = "turbo")(n_levels)
     names(colors) <- unique(df[, vec])
     myne[[length(myne) + 1]] <- colors
   }
@@ -204,7 +204,7 @@ ann.colors.col <- list(
 
 diag(to.plot) <- NA
 # generate heatmap object
-pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_2023.09.25.pdf"), height = 8, width = 12)
+pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_2023.09.25.pdf"), height = 8, width = 10)
 pheatmap(
   to.plot,
   color = viridis_pal(option = "inferno")(100),
@@ -222,7 +222,7 @@ pheatmap(
 dev.off()
 
 
-pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_small_2023.09.25.pdf"), height = 4, width = 6)
+pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_small_2023.09.25.pdf"), height = 4, width = 5)
 pheatmap(
   to.plot,
   color = viridis_pal(option = "inferno")(100),
@@ -239,84 +239,122 @@ pheatmap(
 )
 dev.off()
 
-# ################################################################################
-# #### DIFFERENT K ####
-#
-# ann.col <- data.frame(Cluster = cutree(clust.rows, k = 5))
-# ann.col$Cluster <- as.character(ann.col$Cluster)
-#
-# ann.colors.col <- list(
-#   tumor.ID = generate.colors(ann)[[1]],
-#   # state = generate.colors(ann.row)[[2]],
-#   # phase = generate.colors(ann.row)[[3]],
-#   Cluster = generate.colors.1(ann.col)[[1]]
-# )
-# viridis_pal(option = "turbo", direction = -1)(6)
-# # "#7A0403FF" "#F05B12FF" "#E1DD37FF" "#46F884FF" "#3E9BFEFF" "#30123BFF"
-# ann.colors.col[[2]][[1]] <- "#7A0403FF"
-# ann.colors.col[[2]][[2]] <- "#F05B12FF"
-# ann.colors.col[[2]][[3]] <- "#E1DD37FF"
-# ann.colors.col[[2]][[4]] <- "#46F884FF"
-# ann.colors.col[[2]][[5]] <- "#3E9BFEFF"
-# # ann.colors.col[[2]][[6]] <- "#1BD0D5FF"
-# # ann.colors.col[[2]][[7]] <- "#4777EFFF"
-# # ann.colors.col[[2]][[8]] <- "#30123BFF"
-#
-# pdf(paste0("Output/Figures/04_new_jaccard2/01_Essential.Clusters_Heatmap_k5_small_2023.09.25.pdf"), height = 7, width = 8.5)
-# pheatmap(
-#   to.plot,
-#   color = viridis_pal(direction = -1, option = "inferno")(100), #cm.colors(100)
-#   annotation_row = ann,
-#   annotation_col = ann.col,
-#   annotation_colors = ann.colors.col,
-#   cluster_rows = clust.rows,
-#   cluster_cols = clust.rows,
-#   show_rownames = FALSE,
-#   show_colnames = FALSE,
-#   annotation_names_col = FALSE,
-#   annotation_names_row = FALSE,
-#   use_raster = FALSE
-# )
-# dev.off()
-#
-# #### DIFFERENT K ####
-#
-# ann.col <- data.frame(Cluster = cutree(clust.rows, k = 7))
-# ann.col$Cluster <- as.character(ann.col$Cluster)
-#
-# ann.colors.col <- list(
-#   tumor.ID = generate.colors(ann)[[1]],
-#   # state = generate.colors(ann.row)[[2]],
-#   # phase = generate.colors(ann.row)[[3]],
-#   Cluster = generate.colors.1(ann.col)[[1]]
-# )
-# viridis_pal(option = "turbo", direction = -1)(8)
-# # "#7A0403FF" "#DB3A07FF" "#FE9B2DFF" "#D2E935FF" "#62FC6BFF" "#1BD0D5FF" "#4777EFFF" "#30123BFF"
-# ann.colors.col[[2]][[1]] <- "#7A0403FF"
-# ann.colors.col[[2]][[2]] <- "#DB3A07FF"
-# ann.colors.col[[2]][[3]] <- "#FE9B2DFF"
-# ann.colors.col[[2]][[4]] <- "#D2E935FF"
-# ann.colors.col[[2]][[5]] <- "#62FC6BFF"
-# ann.colors.col[[2]][[6]] <- "#1BD0D5FF"
-# ann.colors.col[[2]][[7]] <- "#4777EFFF"
-# # ann.colors.col[[2]][[8]] <- "#30123BFF"
-#
-# pdf(paste0("Output/Figures/04_new_jaccard2/01_Essential.Clusters_Heatmap_k7_small_2023.09.25.pdf"), height = 7, width = 8.5)
-# pheatmap(
-#   to.plot,
-#   color = viridis_pal(direction = -1, option = "inferno")(100), #cm.colors(100)
-#   annotation_row = ann,
-#   annotation_col = ann.col,
-#   annotation_colors = ann.colors.col,
-#   cluster_rows = clust.rows,
-#   cluster_cols = clust.rows,
-#   show_rownames = FALSE,
-#   show_colnames = FALSE,
-#   annotation_names_col = FALSE,
-#   annotation_names_row = FALSE,
-#   use_raster = FALSE
-# )
-# dev.off()
+################################################################################
+#### DIFFERENT K ####
+
+ann.col <- data.frame(Cluster = cutree(clust.rows, k = 2))
+ann.col$Cluster <- as.character(ann.col$Cluster)
+
+ann.colors.col <- list(
+  tumor.ID = generate.colors(ann)[[1]],
+  # state = generate.colors(ann.row)[[2]],
+  # phase = generate.colors(ann.row)[[3]],
+  Cluster = generate.colors_states(ann.col)[[1]]
+)
+
+pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_k2_small_2023.09.25.pdf"), height = 8, width = 10)
+pheatmap(
+  to.plot,
+  color = viridis_pal(option = "inferno")(100), #cm.colors(100)
+  annotation_row = ann,
+  annotation_col = ann.col,
+  annotation_colors = ann.colors.col,
+  cluster_rows = clust.rows,
+  cluster_cols = clust.rows,
+  show_rownames = FALSE,
+  show_colnames = FALSE,
+  annotation_names_col = FALSE,
+  annotation_names_row = FALSE,
+  use_raster = FALSE
+)
+dev.off()
+
+#### DIFFERENT K ####
+
+ann.col <- data.frame(Cluster = cutree(clust.rows, k = 4))
+ann.col$Cluster <- as.character(ann.col$Cluster)
+
+ann.colors.col <- list(
+  tumor.ID = generate.colors(ann)[[1]],
+  # state = generate.colors(ann.row)[[2]],
+  # phase = generate.colors(ann.row)[[3]],
+  Cluster = generate.colors_states(ann.col)[[1]]
+)
+
+pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_k4_small_2023.09.25.pdf"), height = 8, width = 10)
+pheatmap(
+  to.plot,
+  color = viridis_pal(option = "inferno")(100), #cm.colors(100)
+  annotation_row = ann,
+  annotation_col = ann.col,
+  annotation_colors = ann.colors.col,
+  cluster_rows = clust.rows,
+  cluster_cols = clust.rows,
+  show_rownames = FALSE,
+  show_colnames = FALSE,
+  annotation_names_col = FALSE,
+  annotation_names_row = FALSE,
+  use_raster = FALSE
+)
+dev.off()
+
+#### DIFFERENT K ####
+
+ann.col <- data.frame(Cluster = cutree(clust.rows, k = 5))
+ann.col$Cluster <- as.character(ann.col$Cluster)
+
+ann.colors.col <- list(
+  tumor.ID = generate.colors(ann)[[1]],
+  # state = generate.colors(ann.row)[[2]],
+  # phase = generate.colors(ann.row)[[3]],
+  Cluster = generate.colors_states(ann.col)[[1]]
+)
+
+pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_k5_small_2023.09.25.pdf"), height = 8, width = 10)
+pheatmap(
+  to.plot,
+  color = viridis_pal(option = "inferno")(100), #cm.colors(100)
+  annotation_row = ann,
+  annotation_col = ann.col,
+  annotation_colors = ann.colors.col,
+  cluster_rows = clust.rows,
+  cluster_cols = clust.rows,
+  show_rownames = FALSE,
+  show_colnames = FALSE,
+  annotation_names_col = FALSE,
+  annotation_names_row = FALSE,
+  use_raster = FALSE
+)
+dev.off()
+
+#### DIFFERENT K ####
+
+ann.col <- data.frame(Cluster = cutree(clust.rows, k = 7))
+ann.col$Cluster <- as.character(ann.col$Cluster)
+
+ann.colors.col <- list(
+  tumor.ID = generate.colors(ann)[[1]],
+  # state = generate.colors(ann.row)[[2]],
+  # phase = generate.colors(ann.row)[[3]],
+  Cluster = generate.colors_states(ann.col)[[1]]
+)
+
+pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_k7_small_2023.09.25.pdf"), height = 8, width = 10)
+pheatmap(
+  to.plot,
+  color = viridis_pal(option = "inferno")(100), #cm.colors(100)
+  annotation_row = ann,
+  annotation_col = ann.col,
+  annotation_colors = ann.colors.col,
+  cluster_rows = clust.rows,
+  cluster_cols = clust.rows,
+  show_rownames = FALSE,
+  show_colnames = FALSE,
+  annotation_names_col = FALSE,
+  annotation_names_row = FALSE,
+  use_raster = FALSE
+)
+dev.off()
 
 ################################################################################
 # CAPTURE VULNERABILITY STATE SIGNATURES
@@ -346,7 +384,7 @@ glimpse(new)
 new$merge <- paste(new$k_clust, new$gene, sep = "_")
 
 # split new dataframe by k of choice to create 3 signatures
-signatures <- split.data.frame(new, new$k_3) # SELECT K OF CHOICE #
+signatures <- split.data.frame(new, new$k_3) # SELECT K OF CHOICE HERE#
 glimpse(signatures)
 # examine number of genes in each signature and tumors that contribute to each
 # signature
@@ -428,6 +466,7 @@ for (i in 1:length(signatures)) {
 
 }
 glimpse(sigs)
+names(sigs) <- c("VS1", "VS2", "VS3")
 
 saveRDS(
   sigs,
@@ -461,13 +500,19 @@ for (i in 1:length(sigs)) {
   )
 }
 
-# # shouldn't have to re-do this
-# obj.np <- ScaleData(
-#   obj.np,
-#   features = genes,
-#   vars.to.regress = c("S.Score", "G2M.Score", "percent.mt")
-# )
+# save whole scale.data on all genes separate
+obj.data <- GetAssayData(obj.np, assay = "RNA", layer = "scale.data")
+saveRDS(obj.data, "Output/Rdata/04_states.2_2024.05.02/05_neftel.noPed.NP_scale.data.ALL_2024.05.05.RDS")
 
+# scale only on genes you are scoring?
+# only include non-neoplastic cells when scoring?
+obj.np <- ScaleData(
+  obj.np,
+  features = genes,
+  vars.to.regress = c("S.Score", "G2M.Score", "percent.mt")
+)
+
+# obj.data <- readRDS("Output/Rdata/04_states.2_2024.05.02/05_neftel.noPed.NP_scale.data.ALL_2024.05.05.RDS")
 obj.data <- GetAssayData(obj.np, assay = "RNA", layer = "scale.data")
 obj.data.df <- as.data.frame(obj.data)
 rank.data <- singscore::rankGenes(obj.data.df)
@@ -501,8 +546,8 @@ singscores.list <- c(
 for (n in singscores.list) {
   state <- unlist(strsplit(as.character(n), split = ".", fixed = TRUE))[2]
   scored <- eval(parse(text = n))
-  obj <- AddMetaData(
-    obj,
+  obj.np <- AddMetaData(
+    obj.np,
     metadata = scored[, "TotalScore"],
     col.name = paste0(state, "singscore")
   )
@@ -510,14 +555,14 @@ for (n in singscores.list) {
 
 # add state identities to each cell
 singscore.df <- data.frame(
-  row.names = rownames(obj@meta.data),
-  mVC1 = obj@meta.data$Cluster_1singscore,
-  mVC2 = obj@meta.data$Cluster_2singscore,
-  mVC3 = obj@meta.data$Cluster_3singscore
+  row.names = rownames(obj.np@meta.data),
+  mVC1 = obj.np@meta.data$Cluster_1singscore,
+  mVC2 = obj.np@meta.data$Cluster_2singscore,
+  mVC3 = obj.np@meta.data$Cluster_3singscore
 )
 
 assignments <- data.frame(
-  row.names = rownames(obj@meta.data)
+  row.names = rownames(obj.np@meta.data)
 )
 assignments$cell.state <- "Ambiguous"
 
@@ -541,22 +586,22 @@ obj@meta.data <- obj@meta.data %>%
   )
 table(obj@meta.data$mVC)
 
-dir.create("Output/Figures/04_states.2_2024.05.02/dispersions")
+# dir.create("Output/Figures/04_states.2_2024.05.02/dispersions")
 # singscore qc, dispersion figures
 pdf("Output/Figures/04_states.2_2024.05.02/dispersions/p01_singscore.dispersions.QC_2023.11.09.pdf", height = 8, width = 8)
 plotDispersion(
   scored.Cluster_1,
-  annot = obj@meta.data$mVC,
+  annot = obj.np@meta.data$mVC,
   isInteractive = FALSE
 )
 plotDispersion(
   scored.Cluster_2,
-  annot = obj@meta.data$mVC,
+  annot = obj.np@meta.data$mVC,
   isInteractive = FALSE
 )
 plotDispersion(
   scored.Cluster_3,
-  annot = obj@meta.data$mVC,
+  annot = obj.np@meta.data$mVC,
   isInteractive = FALSE
 )
 dev.off()
@@ -587,7 +632,7 @@ dittoBarPlot(
   xlab = NULL,
   ylab = "Percent of Neoplastic Cells \n",
   main = NULL,
-  color.panel = viridis_pal(option = "turbo", direction = -1)(4)
+  color.panel = viridis_pal(option = "turbo")(length(unique(obj.np$mVC)))
 ) +
   mrd.theme
 dev.off()
@@ -604,7 +649,7 @@ saveRDS(
 ################################################################################
 # FINAL DIFFERENTIAL EXPRESSION
 
-Idents(obj.np) <- obj$mVC
+Idents(obj.np) <- obj.np$mVC
 fin.deg <- FindAllMarkers(
   obj.np,
   assay = "RNA",
