@@ -1274,6 +1274,10 @@ ann.colors.col <- list(
   tumor.ID = generate.colors(ann2)[[1]],
   state = generate.colors_states(ann2)[[2]]
 )
+# names(ann.colors.col$state) <- c("1", "2", "3")
+# ann.colors.col$state[[1]] <- "#30123BFF"
+# ann.colors.col$state[[2]] <- "#A2FC3CFF"
+# ann.colors.col$state[[3]] <- "#7A0403FF"
 
 # need to assign each gene to a signature
 smol2 <- final[, -c(1, 3:4, 6:7)]
@@ -1285,6 +1289,7 @@ smol2 <- smol2[-dup, ]
 colnames(smol2) <- c("gene", "state")
 rownames(smol2) <- smol2$gene
 smol2$gene <- NULL
+smol2$state <- as.factor(smol2$state)
 
 scaled <- ScaleData(mtx)
 
@@ -1352,6 +1357,109 @@ pheatmap::pheatmap(
 )
 dev.off()
 
+
+# with gene annotations
+
+labels <- c(
+  "MYT1L", "EPHB6", "SCN3", "ANK3", "PTPRN", "CLDN18",
+  "PLP1", "MYRF", "CLDN", "RPS5", "RPS13", "RPS29", "RPL27", "RPL34",
+  "AURKA", "AURKB", "CDC20", "CDK1", "EZH2", "BARD1"
+)
+
+add.flag <- function(pheatmap,
+                     kept.labels,
+                     repel.degree) {
+
+  # repel.degree = number within [0, 1], which controls how much
+  #                space to allocate for repelling labels.
+  ## repel.degree = 0: spread out labels over existing range of kept labels
+  ## repel.degree = 1: spread out labels over the full y-axis
+
+  heatmap <- pheatmap$gtable
+
+  new.label <- heatmap$grobs[[which(heatmap$layout$name == "row_names")]]
+
+  # keep only labels in kept.labels, replace the rest with ""
+  new.label$label <- ifelse(new.label$label %in% kept.labels,
+                            new.label$label, "")
+
+  # calculate evenly spaced out y-axis positions
+  repelled.y <- function(d, d.select, k = repel.degree){
+    # d = vector of distances for labels
+    # d.select = vector of T/F for which labels are significant
+
+    # recursive function to get current label positions
+    # (note the unit is "npc" for all components of each distance)
+    strip.npc <- function(dd){
+      if(!"unit.arithmetic" %in% class(dd)) {
+        return(as.numeric(dd))
+      }
+
+      d1 <- strip.npc(dd$arg1)
+      d2 <- strip.npc(dd$arg2)
+      fn <- dd$fname
+      return(lazyeval::lazy_eval(paste(d1, fn, d2)))
+    }
+
+    full.range <- sapply(seq_along(d), function(i) strip.npc(d[i]))
+    selected.range <- sapply(seq_along(d[d.select]), function(i) strip.npc(d[d.select][i]))
+
+    return(unit(seq(from = max(selected.range) + k*(max(full.range) - max(selected.range)),
+                    to = min(selected.range) - k*(min(selected.range) - min(full.range)),
+                    length.out = sum(d.select)),
+                "npc"))
+  }
+  new.y.positions <- repelled.y(new.label$y,
+                                d.select = new.label$label != "")
+  new.flag <- segmentsGrob(x0 = new.label$x,
+                           x1 = new.label$x + unit(0.15, "npc"),
+                           y0 = new.label$y[new.label$label != ""],
+                           y1 = new.y.positions)
+
+  # shift position for selected labels
+  new.label$x <- new.label$x + unit(0.2, "npc")
+  new.label$y[new.label$label != ""] <- new.y.positions
+
+  # add flag to heatmap
+  heatmap <- gtable::gtable_add_grob(x = heatmap,
+                                     grobs = new.flag,
+                                     t = 4,
+                                     l = 4
+  )
+
+  # replace label positions in heatmap
+  heatmap$grobs[[which(heatmap$layout$name == "row_names")]] <- new.label
+
+  # plot result
+  grid.newpage()
+  grid.draw(heatmap)
+
+  # return a copy of the heatmap invisibly
+  invisible(heatmap)
+}
+
+ph <- pheatmap::pheatmap(
+  as.matrix(hmm),
+  color = rev(colorRampPalette(brewer.pal(n = 10, name = "RdBu"))(100)), #paletteer_c("ggthemes::Red-Blue-White Diverging", 100, direction = -1)
+  annotation_row = smol2,
+  annotation_colors = ann.colors.col[2],
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  show_rownames = TRUE,
+  show_colnames = FALSE,
+  annotation_names_col = FALSE,
+  annotation_names_row = FALSE,
+  use_raster = FALSE,
+  breaks = my.breaks
+)
+dev.off()
+
+pdf("Output/Figures/05_analysis_2024.05.03/24_VS.Markers.Heatmap_GENES_2023.09.25.pdf", height = 12, width = 8)
+add.flag(ph,
+         kept.labels = labels,
+         repel.degree = 0)
+dev.off()
+
 ################################################################################
 # ALL DEG LOGFC > 0, P < 0.05 AS HEATMAP (TOP 1500 genes)
 # 1500 better visually
@@ -1361,6 +1469,10 @@ dev.off()
 to.hm <- fin.deg.filt %>%
   group_by(cluster) %>%
   slice_max(order_by = avg_log2FC, n = 1500)
+to.hm <- read.csv (
+  "Output/Rdata/05_analysis_2024.05.03/07_VC.top.1500_2024.05.06.csv",
+  row.names = 1, header = TRUE
+)
 
 avg.clust <- AggregateExpression(
   obj,
@@ -1424,7 +1536,6 @@ sorted_avg.clust.def <- avg.clust$RNA[order_vec, ]
 filt_avg.clust.def <- sorted_avg.clust.def[which(rownames(sorted_avg.clust.def) %in% to.hm$gene), ]
 # sort expression by gene
 
-# none of the essential genes are in the top 100 DEG
 gene.labels <- c(
   rownames(filt_avg.clust.def)[which(rownames(filt_avg.clust.def) %in% ess$Gene)]
 )
@@ -1440,7 +1551,7 @@ my.breaks <- c(seq(min(filt_avg.clust.def), 0, length.out=ceiling(100/2) + 1),
 
 ph <- pheatmap::pheatmap(
   filt_avg.clust.def,
-  color = rev(colorRampPalette(brewer.pal(n = 10, name = "RdBu"))(100)),
+  color = paletteer_c("ggthemes::Red-Blue-White Diverging", 100, direction = -1),
   # annotation_row = def.genes$gene,
   annotation_col = an.col,
   annotation_colors = an.colors,
@@ -1597,6 +1708,18 @@ dev.off()
 ################################################################################
 # ANNOTATE AND SAVE NEFTEL OBJ
 
+# save signatures for supplement
+for (i in 1:length(sigs)) {
+  sigs[[i]]$VS <- paste0("VS", i)
+  sigs[[i]]$avg_log2FC <- NULL
+}
+new.sigs <- rbind(sigs[[1]], sigs[[2]], sigs[[3]])
+write.csv(
+  new.sigs,
+  "Output/Rdata/05_analysis_2024.05.03/08_VS.signature.genes_2024.05.06.csv"
+)
+
+# add a new annotation
 obj@meta.data <- obj@meta.data %>%
   mutate(
     mVC.types = case_when(
@@ -1605,6 +1728,7 @@ obj@meta.data <- obj@meta.data %>%
     )
   )
 
+# save
 saveRDS(
   obj,
   "Output/Rdata/05_analysis_2024.05.03/00_neftel.noPed_VC.ANN_2024.05.06.RDS"

@@ -207,7 +207,7 @@ diag(to.plot) <- NA
 pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_2023.09.25.pdf"), height = 8, width = 10)
 pheatmap(
   to.plot,
-  color = viridis_pal(option = "inferno")(100),
+  color = viridis_pal(option = "inferno", direction = -1)(100),
   annotation_row = ann,
   annotation_col = ann.col,
   annotation_colors = ann.colors.col,
@@ -225,7 +225,7 @@ dev.off()
 pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_small_2023.09.25.pdf"), height = 4, width = 5)
 pheatmap(
   to.plot,
-  color = viridis_pal(option = "inferno")(100),
+  color = viridis_pal(option = "inferno", direction = -1)(100),
   annotation_row = ann,
   annotation_col = ann.col,
   annotation_colors = ann.colors.col,
@@ -255,7 +255,7 @@ ann.colors.col <- list(
 pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_k2_small_2023.09.25.pdf"), height = 8, width = 10)
 pheatmap(
   to.plot,
-  color = viridis_pal(option = "inferno")(100), #cm.colors(100)
+  color = viridis_pal(option = "inferno", direction = -1)(100), #cm.colors(100)
   annotation_row = ann,
   annotation_col = ann.col,
   annotation_colors = ann.colors.col,
@@ -284,7 +284,7 @@ ann.colors.col <- list(
 pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_k4_small_2023.09.25.pdf"), height = 8, width = 10)
 pheatmap(
   to.plot,
-  color = viridis_pal(option = "inferno")(100), #cm.colors(100)
+  color = viridis_pal(option = "inferno", direction = -1)(100), #cm.colors(100)
   annotation_row = ann,
   annotation_col = ann.col,
   annotation_colors = ann.colors.col,
@@ -313,7 +313,7 @@ ann.colors.col <- list(
 pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_k5_small_2023.09.25.pdf"), height = 8, width = 10)
 pheatmap(
   to.plot,
-  color = viridis_pal(option = "inferno")(100), #cm.colors(100)
+  color = viridis_pal(option = "inferno", direction = -1)(100), #cm.colors(100)
   annotation_row = ann,
   annotation_col = ann.col,
   annotation_colors = ann.colors.col,
@@ -342,7 +342,7 @@ ann.colors.col <- list(
 pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_k7_small_2023.09.25.pdf"), height = 8, width = 10)
 pheatmap(
   to.plot,
-  color = viridis_pal(option = "inferno")(100), #cm.colors(100)
+  color = viridis_pal(option = "inferno", direction = -1)(100), #cm.colors(100)
   annotation_row = ann,
   annotation_col = ann.col,
   annotation_colors = ann.colors.col,
@@ -594,11 +594,15 @@ plotDispersion(
   annot = obj.np@meta.data$mVC,
   isInteractive = FALSE
 )
+dev.off()
+pdf("Output/Figures/04_states.2_2024.05.02/dispersions/p02_singscore.dispersions.QC_2023.11.09.pdf", height = 8, width = 8)
 plotDispersion(
   scored.Cluster_2,
   annot = obj.np@meta.data$mVC,
   isInteractive = FALSE
 )
+dev.off()
+pdf("Output/Figures/04_states.2_2024.05.02/dispersions/p03_singscore.dispersions.QC_2023.11.09.pdf", height = 8, width = 8)
 plotDispersion(
   scored.Cluster_3,
   annot = obj.np@meta.data$mVC,
