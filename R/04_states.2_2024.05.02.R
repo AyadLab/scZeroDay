@@ -240,6 +240,23 @@ pheatmap(
 dev.off()
 
 ################################################################################
+
+pdf("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Corrplot_k3_2024.05.08.pdf", height = 8, width = 8)
+corrplot(
+  to.plot,
+  tl.pos = "n",
+  order = "hclust",
+  hclust.method = "ward.D2",
+  method = "shade",
+  type = "full", addrect = 3, rect.col = "red",
+  col = viridis_pal(option = "inferno", direction = -1)(100),
+  is.corr = FALSE,
+  diag = TRUE,
+  na.label = "square", na.label.col = "grey"
+)
+dev.off()
+
+################################################################################
 #### DIFFERENT K ####
 
 ann.col <- data.frame(Cluster = cutree(clust.rows, k = 2))
