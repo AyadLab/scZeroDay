@@ -15,17 +15,20 @@ library(ComplexHeatmap)
 library(viridis)
 library(RColorBrewer)
 library(paletteer)
+library(SPOTlight)
 
 mrd.theme <- readRDS("Output/mrd.fig.theme.RDS")
 umap.theme <- readRDS("Output/mrd.umap.theme.RDS")
 
+dir.create("Output/Figures/XX_MAIN.FIGS.enhanced")
+
 ################################################################################
 
-generate.colors <- function(df) {
+generate.colors_tumors <- function(df) {
   myne <- list()
   for (vec in 1:length(colnames(df))) {
     n_levels <- length(unique(df[, vec]))
-    colors <- DiscretePalette(n_levels, palette = "parade")
+    colors <- colorRampPalette(paletteer_d(palette = "tidyquant::tq_light", 12))(n_levels)
     names(colors) <- unique(df[, vec])
     myne[[length(myne) + 1]] <- colors
   }
@@ -36,7 +39,7 @@ generate.colors_states <- function(df) {
   myne <- list()
   for (vec in 1:length(colnames(df))) {
     n_levels <- length(unique(df[, vec]))
-    colors <- viridis_pal(option = "turbo")(n_levels)
+    colors <- colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(4)
     names(colors) <- unique(df[, vec])
     myne[[length(myne) + 1]] <- colors
   }
@@ -54,35 +57,18 @@ efx <- read.delim(
 )
 colnames(efx) <- gsub(" \\([0-9]*\\)", "", colnames(efx))
 
-write.table(
+gbm.stats_m <- read.csv(
   gbm.stats_m,
   file = "Output/Rdata/01_essential.genes/02_depmap.gbm.stats_mean.effect.scores_2024.01.31.csv",
   quote = FALSE, row.names = TRUE, col.names = TRUE, sep = ","
 )
 
 # effect scores for all genes in all cell lines
-all <- t(as.data.frame(lapply(efx, median)))
-all <- as.data.frame(all)
-colnames(all) <- c("mEffectScore")
-
-pdf("Output/Figures/01_essential.genes/density/00_median.effect.score_all.genes_all.lines_2024.02.07.pdf", height = 4, width = 4)
-all %>%
-  ggplot(
-    aes(x = mEffectScore, y = after_stat(density)) # compute kernel density estimates and replaces counts w/ density in each bucket
-  ) +
-  geom_density(color = "#053061", fill = "#A7CFE4") +
-  geom_vline(xintercept = -0.5, linetype = "dashed", color = "red") +
-  xlim(-3, 0.25) +
-  scale_x_continuous(n.breaks = 8) +
-  theme_classic() +
-  mrd.theme
-dev.off()
-
 all <- t(as.data.frame(lapply(efx, mean)))
 all <- as.data.frame(all)
 colnames(all) <- c("mEffectScore")
 
-pdf("Output/Figures/01_essential.genes/density/00_mean.effect.score_all.genes_all.lines_2024.02.07.pdf", height = 4, width = 4)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/01_mean.effect.score_all.genes_all.lines_2024.02.07.pdf", height = 4, width = 4)
 all %>%
   ggplot(
     aes(x = mEffectScore, y = after_stat(density)) # compute kernel density estimates and replaces counts w/ density in each bucket
@@ -101,7 +87,7 @@ gbm.stats_m$Essential[which(gbm.stats_m$Gene %in% killing$Gene)] <- "Essential"
 gbm.stats_m$Essential <- as.factor(gbm.stats_m$Essential)
 
 # mean effect scores for all genes in GBM cell lines
-pdf("Output/Figures/01_essential.genes/density/01_mean.effect.score_all.genes_GBM.lines_2024.02.07.pdf", height = 4, width = 4)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/01_mean.effect.score_all.genes_GBM.lines_2024.02.07.pdf", height = 4, width = 4)
 gbm.stats_m %>%
   ggplot(
     aes(x = mEffectScore, y = after_stat(density)) # compute kernel density estimates and replaces counts w/ density in each bucket
@@ -114,7 +100,7 @@ gbm.stats_m %>%
 dev.off()
 
 # mean effect scores for all genes significantly lower in GBM cell ines
-pdf("Output/Figures/01_essential.genes/density/02_mean.effect.score_sig.lower.genes_GBM.lines_2024.02.07.pdf", height = 4, width = 4)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/01_mean.effect.score_sig.lower.genes_GBM.lines_2024.02.07.pdf", height = 4, width = 4)
 gbm.stats_m[which(gbm.stats_m$q.value < 0.05 & gbm.stats_m$EffectSize < 0), ] %>%
   ggplot(
     aes(x = mEffectScore, y = after_stat(density))
@@ -127,7 +113,7 @@ gbm.stats_m[which(gbm.stats_m$q.value < 0.05 & gbm.stats_m$EffectSize < 0), ] %>
 dev.off()
 
 # mean effect scores for all essential genes
-pdf("Output/Figures/01_essential.genes/density/03_mean.effect.score_killing.genes_GBM.lines_2024.02.07.pdf", height = 4, width = 4)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/01_mean.effect.score_killing.genes_GBM.lines_2024.02.07.pdf", height = 4, width = 4)
 gbm.stats_m[which(gbm.stats_m$Essential == "Essential" ), ] %>%
   ggplot(
     aes(x = mEffectScore, y = after_stat(density))
@@ -142,8 +128,7 @@ dev.off()
 ################################################################################
 # FIGURE 1 D
 
-saveRDS(
-  obj,
+nef <- readRDS(
   "Output/Rdata/05_analysis_2024.05.03/00_neftel.noPed_VC.ANN_2024.05.06.RDS"
 )
 
@@ -155,22 +140,23 @@ ast <- list(
   symbols = c("****", "***", "**", "*", "ns")
 )
 test.df <- data.frame(
-  MS = obj$ess.MS_1,
-  CellTypes = obj$neoplastic.state
+  MS = nef$ess.MS_1,
+  CellTypes = nef$neoplastic.state
 )
 hist(test.df$MS) # MS roughly normally distributed
 dev.off()
 
-pdf("Output/Figures/02_scRNA.neftel/03_essential.genes_module.score_npVnon_2024.02.05.pdf", height = 8, width = 4)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/01_essential.genes_module.score_npVnon_2024.02.05.pdf", height = 8, width = 6)
 VlnPlot(
-  obj,
+  nef,
   features = "ess.MS_1",
   group.by = "neoplastic.state",
-  cols = viridis_pal(option = "turbo")(4)
+  pt.size = 0.01,
+  cols = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(2)
 ) +
   geom_boxplot() +
   ylab("Module Score \n") +
-  ylim(range(obj$ess.MS_1)[1], 1.1) +
+  ylim(range(nef$ess.MS_1)[1], 1.1) +
   stat_compare_means(
     comparisons = comp.2, method = "t.test",
     symnum.args = ast, p.adjust.methods = "bonferroni",
@@ -216,6 +202,11 @@ comp <- compareCluster(
   qvalueCutoff = 0.05
 )
 
+funni <- function(X) {
+  db <- str_split(X, pattern = "_")[[1]][1]
+  return(db)
+}
+
 comp@compareClusterResult$DB <- as.character(lapply(comp@compareClusterResult$ID, FUN = funni))
 table(comp@compareClusterResult$DB)
 
@@ -223,16 +214,14 @@ table(comp@compareClusterResult$DB)
 filt <- comp[which(comp@compareClusterResult$DB == "REACTOME" | comp@compareClusterResult$DB == "KEGG" | comp@compareClusterResult$DB == "HALLMARK" | comp@compareClusterResult$DB == "BIOCARTA"), ]
 comp.filt <- comp
 comp.filt@compareClusterResult <- filt
-
 glimpse(comp.filt@compareClusterResult)
-View(comp.filt@compareClusterResult)
 
 filt <- comp.filt[-grep("HIV", comp.filt@compareClusterResult$ID), ]
 comp.filt2 <- comp.filt
 comp.filt2@compareClusterResult <- filt
 glimpse(comp.filt2@compareClusterResult)
 
-pdf("Output/Figures/01_essential.genes/pan_enrich/05_msigdb.C2.H_filt_ORA_2024.03.13.pdf", height = 8, width = 10)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/01_msigdb.C2.H_filt_ORA_2024.03.13.pdf", height = 8, width = 10)
 dotplot(
   comp.filt2,
   x = "Count",
@@ -251,31 +240,31 @@ dev.off()
 ################################################################################################################################################################
 # FIGURE 2 B
 
-saveRDS(
-  to.plot,
-  paste0(dir, "02.1_to.plot_", names(input.list)[i], "_2024.05.02.RDS")
+to.plot <- readRDS(
+  "Output/Rdata/03_states.1_2024.05.02/02.1_to.plot_MGH106_2024.05.02.RDS"
+)
+clust.rows <- readRDS(
+  "Output/Rdata/03_states.1_2024.05.02/02.5_clust.rows_MGH106_2024.03.26.RDS"
 )
 
-pdf(paste0(dir2, "01_", names(input.list)[i], "_clustered.pheatmap_2024.03.27.pdf"), height = 8, width = 9)
-print(
-  pheatmap(
-    to.plot,
-    color = viridis_pal(option = "inferno")(100),
-    cluster_rows = clust.rows,
-    cluster_cols = clust.rows,
-    show_rownames = FALSE,
-    show_colnames = FALSE,
-    use_raster = FALSE
-  )
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/02_MGH106.Heatmap.pdf", height = 8, width = 9)
+pheatmap(
+  to.plot,
+  color = colorRampPalette(paletteer_d(palette = "RColorBrewer::PuOr", 11))(100),
+  cluster_rows = clust.rows,
+  cluster_cols = clust.rows,
+  show_rownames = FALSE,
+  show_colnames = FALSE,
+  use_raster = FALSE
 )
 dev.off()
 
 ################################################################################
 # FIGURE 2 C
 
-saveRDS(pivot, "Output/Rdata/04_states.2_2024.05.02/01_pivot.mtx_2024.04.05.RDS")
+pivot <- readRDS("Output/Rdata/04_states.2_2024.05.02/01_pivot.mtx_2024.04.05.RDS")
 
-saveRDS(to.plot, "Output/Rdata/04_states.2_2024.05.02/02_to.plot_2024.04.05.RDS")
+to.plot <- readRDS("Output/Rdata/04_states.2_2024.05.02/02_to.plot_2024.04.05.RDS")
 
 
 set.seed(707)
@@ -302,19 +291,23 @@ rownames(ann) <- ann$clust.ID
 ann$clust.ID <- NULL
 
 ann.colors.col <- list(
-  tumor.ID = generate.colors(ann)[[1]],
+  tumor.ID = generate.colors_tumors(ann)[[1]],
   # state = generate.colors(ann.row)[[2]],
   # phase = generate.colors(ann.row)[[3]],
   Cluster = generate.colors_states(ann.col)[[1]]
 )
+ann.colors.col$Cluster <- ann.colors.col$Cluster[-4]
 
+scaled <- scale(to.plot, center = TRUE, scale = FALSE)
+my.breaks <- c(seq(min(to.plot), 0, length.out=ceiling(100/2) + 1),
+               seq(max(to.plot)/100, max(to.plot), length.out=floor(100/2)))
 
 diag(to.plot) <- NA
 # generate heatmap object
-pdf(paste0("Output/Figures/04_states.2_2024.05.02/01_Essential.Clusters_Heatmap_2023.09.25.pdf"), height = 8, width = 10)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/02_Vulnerability.States.Heatmap.pdf", height = 8, width = 9)
 pheatmap(
   to.plot,
-  color = viridis_pal(option = "inferno", direction = -1)(100),
+  color = colorRampPalette(paletteer_c(palette = "viridis::magma", 100, direction = -1))(100),
   annotation_row = ann,
   annotation_col = ann.col,
   annotation_colors = ann.colors.col,
@@ -324,7 +317,8 @@ pheatmap(
   show_colnames = FALSE,
   annotation_names_col = FALSE,
   annotation_names_row = FALSE,
-  use_raster = FALSE
+  use_raster = FALSE,
+  # breaks = my.breaks
 )
 dev.off()
 
@@ -335,22 +329,30 @@ sigs <- readRDS(
   "Output/Rdata/04_states.2_2024.05.02/03_VS.markers_2024.04.05.RDS"
 )
 
-all.genes <- c()
-for (i in 1:length(mark.cor.list)) {
-  g <- unique(mark.cor.list[[i]]$gene)
-  all.genes <- c(all.genes, g)
-  all.genes <- unique(all.genes)
+signatures <- readRDS(
+  "Output/Rdata/04_states.2_2024.05.02/04_VS.signatures.all_2024.04.05.RDS"
+)
+
+nef.np <- readRDS(
+  "Output/Rdata/05_analysis_2024.05.03/00_neftel.noPed.NP_VC.ANN_2024.05.06.RDS"
+)
+
+# make exhaustive list of all top 100 marker genes per state, including ----
+# duplicated genes per signature
+mark.cor.list <- list()
+for (i in 1:length(signatures)) {
+  sub <- signatures[[i]][which(signatures[[i]]$gene %in% sigs[[i]]$gene), ]
+  sub2 <- sub[, -c(4, 6:10)]
+  mark.cor.list[[i]] <- sub2
 }
+glimpse(mark.cor.list)
 
 genes <- read.csv( # read in 300-gene list
   "Output/Rdata/04_states.2_2024.05.02/02_all.VS.markers_noANN_2024.04.05.csv",
   row.names = 1
 )
 genes <- genes$x
-unsig.genes <- unique(genes)
-
-# confirm match
-length(unsig.genes[unsig.genes %in% all.genes]) # 292
+genes <- unique(genes)
 
 # add average expression of genes in cells w/in k_clust ----
 
@@ -360,7 +362,7 @@ files <- list.files(
 )
 path = "Output/Rdata/03_states.1_2024.05.02/"
 
-# start the loop for extraction of expression data
+# start the loop for extraction of expression data of genes of interest
 expr.df <- data.frame()
 final <- data.frame()
 for (i in 1:length(mark.cor.list)) {
@@ -389,7 +391,7 @@ for (i in 1:length(mark.cor.list)) {
     genes <- all.genes
     cells <- rownames(data.list[[dat.inx]])[which(data.list[[dat.inx]][, index.k] == k)]
 
-    sub.obj <- subset(obj.np, cells = cells)
+    sub.obj <- subset(nef.np, cells = cells)
 
     norm <- sub.obj@assays$RNA$data[which(rownames(sub.obj@assays$RNA$data) %in% genes), ]
 
@@ -470,13 +472,14 @@ ann2$state <- factor(ann2$state, levels = c("1", "2", "3"))
 
 ann.colors.col <- list(
   # clust.ID = generate.colors(ann2)[[1]],
-  tumor.ID = generate.colors(ann2)[[1]],
+  tumor.ID = generate.colors_tumors(ann2)[[1]],
   state = generate.colors_states(ann2)[[2]]
 )
-# names(ann.colors.col$state) <- c("1", "2", "3")
-# ann.colors.col$state[[1]] <- "#30123BFF"
-# ann.colors.col$state[[2]] <- "#A2FC3CFF"
-# ann.colors.col$state[[3]] <- "#7A0403FF"
+# VS out of order for some reason and can't figure out how to rearrange
+ann.colors.col$state <- ann.colors.col$state[-4]
+num2 <- ann.colors.col$state[3]
+ann.colors.col$state[3] <- ann.colors.col$state[2]
+ann.colors.col$state[2] <- num2
 
 # need to assign each gene to a signature
 smol2 <- final[, -c(1, 3:4, 6:7)]
@@ -499,25 +502,6 @@ my.breaks <- c(seq(min(scaled), 0, length.out=ceiling(100/2) + 1),
 markers <- sigs %>%
   purrr::reduce(full_join, by = "gene")
 hmm <- scaled[markers$gene, ] # markers should be ordered by log2FC
-# hmm <- hmm[rownames(smol2), ] # smol is ordered by tumor
-
-
-pdf(paste0("Output/Figures/05_analysis_2024.05.03/23_VS.Markers.Heatmap_sorted.noclust_2023.09.25.pdf"), height = 12, width = 8)
-pheatmap::pheatmap(
-  as.matrix(hmm),
-  color = rev(colorRampPalette(brewer.pal(n = 10, name = "RdBu"))(100)), #paletteer_c("ggthemes::Red-Blue-White Diverging", 100, direction = -1)
-  annotation_row = smol2,
-  annotation_colors = ann.colors.col[2],
-  cluster_rows = FALSE,
-  cluster_cols = FALSE,
-  show_rownames = FALSE,
-  show_colnames = FALSE,
-  annotation_names_col = FALSE,
-  annotation_names_row = FALSE,
-  use_raster = FALSE,
-  breaks = my.breaks
-)
-dev.off()
 
 labels <- c(
   "MYT1L", "EPHB6", "SCN3", "ANK3", "PTPRN", "CLDN18",
@@ -599,7 +583,7 @@ add.flag <- function(pheatmap,
 
 ph <- pheatmap::pheatmap(
   as.matrix(hmm),
-  color = rev(colorRampPalette(brewer.pal(n = 10, name = "RdBu"))(100)), #paletteer_c("ggthemes::Red-Blue-White Diverging", 100, direction = -1)
+  color = colorRampPalette(paletteer_d(palette = "RColorBrewer::RdBu", 11, direction = -1))(100),
   annotation_row = smol2,
   annotation_colors = ann.colors.col[2],
   cluster_rows = FALSE,
@@ -613,7 +597,7 @@ ph <- pheatmap::pheatmap(
 )
 dev.off()
 
-pdf("Output/Figures/05_analysis_2024.05.03/24_VS.Markers.Heatmap_GENES_2023.09.25.pdf", height = 12, width = 8)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/03_VS.Markers.Heatmap_GENES_2023.09.25.pdf", height = 12, width = 8)
 add.flag(ph,
          kept.labels = labels,
          repel.degree = 0)
@@ -621,8 +605,6 @@ dev.off()
 
 ################################################################################
 # FIGURE 3 B
-
-glimpse(sigs)
 
 markers.list <- list(
   VS1 = sigs[[1]]$gene,
@@ -633,6 +615,7 @@ markers.list <- list(
 msigdb <- msigdbr(species = "Homo sapiens", category = "C2")
 msigdb2 <- msigdbr(species = "Homo sapiens", category = "H")
 msigdb6 <- msigdbr(species = "Homo sapiens", category = "C3")
+# plot Enrichment score in HM and arrange w/ clustering?
 
 msigdb7 <- rbind(msigdb, msigdb2, msigdb6)
 
@@ -651,13 +634,9 @@ comp <- compareCluster(
 
 comp@compareClusterResult$DB <- as.character(lapply(comp@compareClusterResult$ID, FUN = funni))
 table(comp@compareClusterResult$DB)
-
-glimpse(comp@compareClusterResult)
 table(comp@compareClusterResult$Cluster)
 
-View(comp@compareClusterResult)
-
-# remove irrelevant enrichment results
+# remove cancer-irrelevant enrichment results from top 5 / cluster
 filt <- comp[-grep("MCLACHLAN", comp@compareClusterResult$ID), ]
 filt <- filt[-grep("ROSTY", filt$ID), ]
 filt <- filt[-grep("DUTERTRE", filt$ID), ]
@@ -675,11 +654,8 @@ filt <- filt[-grep("KONG", filt$ID), ]
 
 comp.filt <- comp
 comp.filt@compareClusterResult <- filt
-# glimpse(comp.filt@compareClusterResult)
 
-dir.create("Output/Figures/05_analysis_2024.05.03/marker_enrich")
-
-pdf("Output/Figures/05_analysis_2024.05.03/marker_enrich/01_msigdb.C2.C3.H_filt_ORA_2024.04.24.pdf", height = 8, width = 10)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/03_msigdb.C2.C3.H_filt_ORA_2024.04.24.pdf", height = 8, width = 10)
 dotplot(
   comp.filt,
   x = "Cluster",
@@ -706,8 +682,8 @@ to.hm <- read.csv (
   row.names = 1, header = TRUE
 )
 
-Idents(obj) <- obj$mVC
-avg.clust <- AverageExpression(obj, group.by = "ident", assay = "RNA", layer = "scale.data")
+Idents(nef) <- nef$mVC
+avg.clust <- AverageExpression(nef, group.by = "ident", assay = "RNA", layer = "scale.data")
 
 order_vec <- match(unique(to.hm$gene), rownames(avg.clust$RNA))
 sorted_avg.clust.def <- avg.clust$RNA[order_vec, ]
@@ -716,7 +692,7 @@ filt_avg.clust.def <- sorted_avg.clust.def[which(rownames(sorted_avg.clust.def) 
 # sort expression by gene
 
 gene.labels <- c(
-  rownames(filt_avg.clust.def)[which(rownames(filt_avg.clust.def) %in% ess$Gene)]
+  rownames(filt_avg.clust.def)[which(rownames(filt_avg.clust.def) %in% killing$Gene)]
 )
 
 an.col <- data.frame(
@@ -730,7 +706,7 @@ my.breaks <- c(seq(min(filt_avg.clust.def), 0, length.out=ceiling(100/2) + 1),
 
 ph <- pheatmap::pheatmap(
   filt_avg.clust.def,
-  color = paletteer_c("ggthemes::Red-Blue-White Diverging", 100, direction = -1),
+  color = colorRampPalette(paletteer_d(palette = "RColorBrewer::RdBu", 11, direction = -1))(100),
   # annotation_row = def.genes$gene,
   annotation_col = an.col,
   annotation_colors = an.colors,
@@ -744,7 +720,7 @@ ph <- pheatmap::pheatmap(
 )
 dev.off()
 
-pdf("Output/Figures/05_analysis_2024.05.03/26_1500.DEG.pHeatmap_2024.05.05.pdf", height = 12, width = 8)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/03_1500.DEG.pHeatmap_2024.05.05.pdf", height = 6, width = 8)
 add.flag(ph,
          kept.labels = gene.labels,
          repel.degree = 0)
@@ -755,16 +731,16 @@ dev.off()
 
 # neftel ----
 
-pdf("Output/Figures/05_analysis_2024.05.03/09_Essential.Clusters_Vln_Module.Score_stats_small_2023.10.18.pdf", height = 4, width = 4)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/03_VS.MS_Neftel_Vln_2023.10.18.pdf", height = 4, width = 8)
 VlnPlot(
-  obj,
+  nef,
   features = "ess.MS_1",
-  group.by = "mVC",
-  cols = viridis_pal(option = "turbo")(length(unique(obj$mVC)))
+  group.by = "mVC", pt.size = 0.01,
+  cols = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(unique(nef$mVC)))
 ) +
   geom_boxplot() +
   ylab("Module Score \n") +
-  ylim(range(obj$ess.MS_1)[1], range(obj$ess.MS_1)[2]+0.2) +
+  ylim(range(nef$ess.MS_1)[1], range(nef$ess.MS_1)[2]+0.2) +
   mrd.theme +
   stat_compare_means(
     method = "anova",
@@ -777,8 +753,8 @@ dev.off()
 
 # stats
 test.df <- data.frame(
-  MS = obj$ess.MS_1,
-  VS = obj$mVC
+  MS = nef$ess.MS_1,
+  VS = nef$mVC
 )
 hist(test.df$MS) # MS roughly normally distributed
 dev.off()
@@ -786,9 +762,6 @@ dev.off()
 test.res <- aov(MS ~ VS, data = test.df)
 print(test.res)
 
-# Call:
-#   aov(formula = MS ~ VS, data = test.df)
-#
 # Terms:
 #   VS Residuals
 # Sum of Squares   35.94836 196.58799
@@ -812,10 +785,66 @@ print(tukey) # bonferroni-adjusted p-values provided
 
 # johnson ----
 
+john <- readRDS(
+  "data/johnson_2024.10.04.RDS"
+)
+
+test.df <- data.frame(
+  MS = john$ess.MS_1,
+  State = john$mVC
+)
+hist(test.df$MS) # MS roughly normally distributed
+dev.off()
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/03_VS.MS_Johnson_Vln_2023.10.18.pdf", height = 4, width = 8)
+VlnPlot(
+  john,
+  features = "ess.MS_1",
+  group.by = "mVC", pt.size = 0.01,
+  cols = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(unique(nef$mVC)))
+) +
+  geom_boxplot() +
+  ylab("Module Score \n") +
+  ylim(range(john$ess.MS_1)[1], range(john$ess.MS_1)[2]+0.05) +
+  stat_compare_means(
+    method = "anova",
+    step.increase = 0.125) +
+  mrd.theme +
+  theme(
+    axis.title.x = element_blank(),
+    legend.position = "none"
+  )
+dev.off()
+
+# anova and tukey's for cell type plot
+
+test.res <- aov(MS ~ State, data = test.df)
+print(test.res)
+
+# Terms:
+#   State Residuals
+# Sum of Squares  17.01297  61.40779
+# Deg. of Freedom        3     28126
+#
+# Residual standard error: 0.04672591
+# Estimated effects may be unbalanced
+
+# tukey's hsd post-hoc
+tukey <- TukeyHSD(test.res)
+print(tukey) # bonferroni-adjusted p-values provided
+
+# $State
+#                            diff         lwr         upr p adj
+# mVC2-mVC1            0.04377172  0.04125086  0.04629259     0
+# mVC3-mVC1            0.02374116  0.02130971  0.02617260     0
+# Non-Neoplastic-mVC1 -0.01875397 -0.02120403 -0.01630391     0
+# mVC3-mVC2           -0.02003057 -0.02193115 -0.01812998     0
+# Non-Neoplastic-mVC2 -0.06252569 -0.06445003 -0.06060135     0
+# Non-Neoplastic-mVC3 -0.04249513 -0.04430074 -0.04068951     0
+
 # suter ----
 
-saveRDS(
-  suter,
+suter <- readRDS(
   "data/Suter_scGBM_2023.10.04.RDS"
 )
 
@@ -826,12 +855,12 @@ test.df <- data.frame(
 hist(test.df$MS) # MS roughly normally distributed
 dev.off()
 
-pdf("Output/Figures/07_suter_2024.05.06/07_Vln.GDS.MS.VS_2024.02.23.pdf", height = 4, width = 4)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/03_VS.MS_Suter_Vln_2023.10.18.pdf", height = 4, width = 8)
 VlnPlot(
   suter,
   features = "ess.MS_1",
   group.by = "mVC", pt.size = 0.01,
-  cols = viridis_pal(option = "turbo")(length(unique(suter$mVC)))
+  cols = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(unique(nef$mVC)))
 ) +
   geom_boxplot() +
   ylab("Module Score \n") +
@@ -878,14 +907,13 @@ print(tukey) # bonferroni-adjusted p-values provided
 
 # neftel ----
 
-saveRDS(
-  obj.np,
+nef.np <- readRDS(
   "Output/Rdata/05_analysis_2024.05.03/00_neftel.noPed.NP_VC.ANN_2024.05.06.RDS"
 )
 
-pdf("Output/Figures/05_analysis_2024.05.03/03_Essential.Clusters_Barplot_Tumor_small_2023.09.25.pdf", height = 4, width = 6)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/04_bar_VS.prop_2024.05.09.pdf", height = 4, width = 8)
 dittoBarPlot(
-  obj.np,
+  nef.np,
   var = "mVC",
   group.by = "tumor.id",
   scale = "percent",
@@ -893,7 +921,7 @@ dittoBarPlot(
   xlab = NULL,
   ylab = "Percent of Cells \n",
   main = NULL,
-  color.panel = viridis_pal(option = "turbo")(length(unique(obj.np$mVC))+1)
+  color.panel = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(unique(nef.np$mVC))+1)
 ) +
   mrd.theme +
   theme(legend.position = "right")
@@ -901,17 +929,35 @@ dev.off()
 
 # johnson ----
 
+john.np <- readRDS(
+  "data/johnson.NP_2024.10.04.RDS"
+)
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/04_JOHN_bar_VS.prop_2024.05.09.pdf", height = 4, width = 8)
+dittoBarPlot(
+  john.np,
+  var = "mVC",
+  group.by = "patient.ident",
+  scale = "percent",
+  y.breaks = c(0, 0.25, 0.5, 0.75, 1.0),
+  xlab = NULL,
+  ylab = "Percent of Neoplastic Cells \n",
+  main = NULL,
+  color.panel = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(unique(john.np$mVC))+1)
+) +
+  mrd.theme +
+  theme(legend.position = "right")
+dev.off()
 
 # suter ----
 
-saveRDS(
-  obj.np,
+sut.np <- readRDS(
   "data/Suter_scGBM.NP_2023.10.04.RDS"
 )
 
-pdf("Output/Figures/07_suter_2024.05.06/04_Essential.Clusters_Barplot_Tumor.NonNP_2023.12.08.pdf", height = 4, width = 8)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/04_SUTER_bar_VS.prop_2024.05.09.pdf", height = 4, width = 8)
 dittoBarPlot(
-  obj.np,
+  sut.np,
   var = "mVC",
   group.by = "orig.ident",
   scale = "percent",
@@ -919,10 +965,200 @@ dittoBarPlot(
   xlab = NULL,
   ylab = "Percent of Neoplastic Cells \n",
   main = NULL,
-  color.panel = viridis_pal(option = "turbo")(length(unique(obj.np$mVC)))
+  color.panel = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(unique(sut.np$mVC))+1)
 ) +
-  mrd.theme
+  mrd.theme +
+  theme(legend.position = "right")
 dev.off()
 
 
+################################################################################################################################################################
+# FIGURE 5, SPATIAL FIGURES
+
+# dir.create("Output/Figures/15_spatial_2024.05.09")
+
+spatial <- readRDS("Output/Rdata/15_spatial_2024.05.09/08_deconv_v5_2024.05.09.RDS")
+
+props.state <- data.frame(
+  row.names = rownames(spatial@meta.data),
+  VS1 = spatial$propVS1,
+  VS2 = spatial$propVS2,
+  VS3 = spatial$propVS3,
+  Non = spatial$propNON
+)
+
+img <- Images(spatial)
+run <- img[grep("_C_", img, invert = TRUE)] # remove entry cortex slices
+Idents(spatial) <- spatial$orig.ident
+
+dir3 <- "Output/Figures/XX_MAIN.FIGS.enhanced/05_spatial_he"
+dir.create(dir3)
+for (i in 1:length(run)) {
+  slice <- run[i]
+  spots <- WhichCells(spatial, idents = slice)
+  pdf(paste0(dir3, "/prop_image_v5_", slice, ".pdf"))
+  print(
+    plotSpatialScatterpie(
+      x = spatial,
+      y = props.state[spots, ],
+      cell_types = colnames(props.state),
+      img = TRUE, slice = run[i],
+      pie_scale = 0.4, scatterpie_alpha = 0.9
+    ) +
+      scale_fill_manual(
+        values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(colnames(props.state))),
+        breaks = colnames(props.state)
+      )
+  )
+  dev.off()
+}
+
+dir3.1 <- "Output/Figures/XX_MAIN.FIGS.enhanced/05_spatial_emty"
+dir.create(dir3.1)
+for (i in 1:length(run)) {
+  slice <- run[i]
+  spots <- WhichCells(spatial, idents = slice)
+  pdf(paste0(dir3.1, "/prop_image_v5_", slice, ".pdf"))
+  print(
+    plotSpatialScatterpie(
+      x = spatial,
+      y = props.state[spots, ],
+      cell_types = colnames(props.state),
+      img = FALSE, slice = run[i], ####
+      pie_scale = 0.40, scatterpie_alpha = 1.0
+    ) +
+      scale_fill_manual(
+        values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(colnames(props.state))),
+        breaks = colnames(props.state)
+      )
+  )
+  dev.off()
+}
+
+# 243, 260, 269 : less spaces between spots (increase pie_scale)
+
+slice <- "UKF243_T_ST"
+spots <- WhichCells(spatial, idents = slice)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF243_spatial.emty.pie_2024.05.09.pdf")
+plotSpatialScatterpie(
+  x = spatial,
+  y = props.state[spots, ],
+  cell_types = colnames(props.state),
+  img = FALSE, slice = slice, ####
+  pie_scale = 0.45, scatterpie_alpha = 1.0
+) +
+  scale_fill_manual(
+    values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(colnames(props.state))),
+    breaks = colnames(props.state)
+  )
+dev.off()
+
+slice <- "UKF260_T_ST"
+spots <- WhichCells(spatial, idents = slice)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF260_spatial.emty.pie_2024.05.09.pdf")
+plotSpatialScatterpie(
+  x = spatial,
+  y = props.state[spots, ],
+  cell_types = colnames(props.state),
+  img = FALSE, slice = slice, ####
+  pie_scale = 0.47, scatterpie_alpha = 1.0
+) +
+  scale_fill_manual(
+    values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(colnames(props.state))),
+    breaks = colnames(props.state)
+  )
+dev.off()
+
+slice <- "UKF269_T_ST"
+spots <- WhichCells(spatial, idents = slice)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF269_spatial.emty.pie_2024.05.09.pdf")
+plotSpatialScatterpie(
+  x = spatial,
+  y = props.state[spots, ],
+  cell_types = colnames(props.state),
+  img = FALSE, slice = slice, ####
+  pie_scale = 0.45, scatterpie_alpha = 1.0
+) +
+  scale_fill_manual(
+    values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(colnames(props.state))),
+    breaks = colnames(props.state)
+  )
+dev.off()
+
 ################################################################################
+# FIGURE 5, BARPLOT
+
+quant <- data.frame(
+  row.names = rownames(spatial@meta.data),
+  sliceID = spatial@meta.data$orig.ident,
+  VS1 = spatial@meta.data$propVS1,
+  VS2 = spatial@meta.data$propVS2,
+  VS3 = spatial@meta.data$propVS3,
+  Astrocytes = spatial@meta.data$propAstro,
+  Endothelial = spatial@meta.data$propEndo,
+  Fibroblast = spatial@meta.data$propFibro,
+  Myeloid = spatial@meta.data$propMyelo,
+  Oligodendrocyte = spatial@meta.data$propOligo,
+  T.Cell = spatial@meta.data$propT
+)
+
+# remove "C" slices ("NA" values in proportions)
+quant <- quant[complete.cases(quant), ]
+glimpse(quant)
+
+quant.long <- quant %>%
+  pivot_longer(cols = -sliceID, names_to = "CellType", values_to = "Proportion")
+glimpse(quant.long)
+
+quant.ag <- quant.long %>%
+  aggregate(Proportion ~ sliceID + CellType, FUN = mean)
+glimpse(quant.ag)
+quant.ag$CellType <- factor(quant.ag$CellType, levels = c("VS1", "VS2", "VS3", "Astrocytes", "Endothelial", "Fibroblast", "Myeloid", "Oligodendrocyte", "T.Cell"))
+
+#### can plot all cell types here
+
+non <- c("Astrocytes", "Endothelial", "Fibroblast", "Myeloid", "Oligodendrocyte", "T.Cell")
+quant.ag <- quant.ag[-which(quant.ag$CellType %in% non), ]
+
+quant.np <- quant.ag %>%
+  pivot_wider(names_from = CellType, values_from = Proportion)
+quant.np <- quant.np %>%
+  mutate(
+    sum = VS1+VS2+VS3
+  )
+quant.np <- quant.np %>%
+  mutate(
+    fct = 1/sum
+  )
+quant.np <- quant.np %>%
+  mutate(
+    newVS1 = VS1*fct,
+    newVS2 = VS2*fct,
+    newVS3 = VS3*fct
+  )
+glimpse(quant.np)
+quant.np <- quant.np[, -c(2:6)]
+colnames(quant.np) <- c("sliceID", "VS1", "VS2", "VS3")
+
+quant.long <- quant.np %>%
+  pivot_longer(cols = -sliceID, names_to = "CellType", values_to = "Proportion")
+glimpse(quant.long)
+
+quant.ag <- quant.long %>%
+  aggregate(Proportion ~ sliceID + CellType, FUN = mean)
+glimpse(quant.ag)
+quant.ag$CellType <- factor(quant.ag$CellType, levels = c("VS1", "VS2", "VS3"))
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_spatial.bar.VS_2024.05.09.pdf", height = 4, width = 8)
+quant.ag %>%
+  ggplot(aes(x = sliceID, y = Proportion, fill = CellType)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_fill_manual(
+    values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(levels(quant.ag$CellType))+1),
+    breaks = levels(quant.ag$CellType)
+  ) +
+  theme_minimal() +
+  mrd.theme +
+  theme(legend.position = "right") +
+  RotatedAxis()
+dev.off()
