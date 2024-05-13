@@ -226,7 +226,7 @@ corrplot(
   order = "hclust",
   hclust.method = "ward.D2",
   method = "color",
-  type = "full", addrect = 5, rect.col = "red",
+  type = "full", addrect = 4, rect.col = "red",
   col = colorRampPalette(paletteer_d(palette = "RColorBrewer::PiYG", 11))(100),
   is.corr = TRUE,
   diag = TRUE,
