@@ -22,10 +22,10 @@ print(paste("This is iteration", i, "of 18")) # 18 tumor sections (non-ctx)
 
 setwd("/data/mrd/scZeroDay")
 
-obj <- readRDS("Output/Rdata/04_merged.joined.scored_2024.04.04.RDS")
+obj <- readRDS("data/ravi.spatial_04_merged.joined.scored_2024.04.04.RDS")
 
 # non-regressed scale.data
-non.regr <- readRDS("Output/Rdata/06_scale.data.not.regressed_2024.04.05.RDS")
+non.regr <- readRDS("data/ravi.spatial_06_scale.data.not.regressed_2024.04.05.RDS")
 obj@assays$Spatial$scale.data <- non.regr
 
 ################################################################################
@@ -46,7 +46,7 @@ for (key in keys.to.remove) {
 
 ################################################################################
 
-# ref <- readRDS("/data/mrd/spatial/Suter_scGBM_2023.10.04.RDS") # updated new suter obj 5/7/2024
+# ref <- readRDS("data/Suter_scGBM_2023.10.04.RDS")
 #
 # ref@meta.data <- ref@meta.data %>%
 #   mutate(
@@ -61,9 +61,9 @@ for (key in keys.to.remove) {
 #   assayData = as.matrix(ref@assays$RNA$counts),
 #   phenoData = AnnotatedDataFrame(ref@meta.data)
 # )
-# saveRDS(eset.ref, "Output/Rdata/suter.ref.eset_2024.05.07.RDS")
+# saveRDS(eset.ref, "Output/Rdata/11_spatial/suter.ref.eset_2024.05.07.RDS")
 
-eset.ref <- readRDS("Output/Rdata/suter.ref.eset_2024.05.07.RDS")
+eset.ref <- readRDS("Output/Rdata/11_spatial/suter.ref.eset_2024.05.07.RDS")
 
 eset.sp <- ExpressionSet(
   assayData = as.matrix(subset.obj@assays$Spatial$counts),
@@ -119,7 +119,7 @@ prop.image <- plotSpatialScatterpie(
     breaks = colnames(prop.level)
   )
 
-output.dir <- "/data/mrd/spatial/Output/Figures/05_deconv_zero/"
+output.dir <- "/data/mrd/scZeroDay/Output/Figures/11_spatial/"
 output.file_deconv <- paste0(output.dir, "prop_image_v1_", gsub("[^A-Za-z0-9]", "_", image.name), ".pdf")
 pdf(output.file_deconv)
 prop.image
@@ -127,7 +127,7 @@ dev.off()
 
 
 
-data.dir <- "/data/mrd/spatial/Output/Rdata/05_deconv_zero/"
+data.dir <- "/data/mrd/scZeroDay/Output/Rdata/11_spatial/"
 saveRDS(
   deconv,
   paste0(data.dir, "prop_data_v1_", gsub("[^A-Za-z0-9]", "_", image.name), ".RDS")
