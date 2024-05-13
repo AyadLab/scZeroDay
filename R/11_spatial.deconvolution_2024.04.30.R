@@ -20,7 +20,7 @@ print(paste("This is iteration", i, "of 18")) # 18 tumor sections (non-ctx)
 
 ################################################################################
 
-setwd("/data/mrd/spatial")
+setwd("/data/mrd/scZeroDay")
 
 obj <- readRDS("Output/Rdata/04_merged.joined.scored_2024.04.04.RDS")
 
@@ -47,7 +47,7 @@ for (key in keys.to.remove) {
 ################################################################################
 
 # ref <- readRDS("/data/mrd/spatial/Suter_scGBM_2023.10.04.RDS") # updated new suter obj 5/7/2024
-# 
+#
 # ref@meta.data <- ref@meta.data %>%
 #   mutate(
 #     deconv = case_when(
@@ -56,7 +56,7 @@ for (key in keys.to.remove) {
 #     )
 #   )
 # table(ref$deconv)
-# 
+#
 # eset.ref <- ExpressionSet(
 #   assayData = as.matrix(ref@assays$RNA$counts),
 #   phenoData = AnnotatedDataFrame(ref@meta.data)
@@ -66,7 +66,7 @@ for (key in keys.to.remove) {
 eset.ref <- readRDS("Output/Rdata/suter.ref.eset_2024.05.07.RDS")
 
 eset.sp <- ExpressionSet(
-  assayData = as.matrix(subset.obj@assays$Spatial$counts), 
+  assayData = as.matrix(subset.obj@assays$Spatial$counts),
   phenoData = AnnotatedDataFrame(subset.obj@meta.data)
 )
 
@@ -108,14 +108,14 @@ deconv <- SCDC::SCDC_prop_subcl_marker(
 prop.level <- deconv$prop.est
 
 prop.image <- plotSpatialScatterpie(
-  x = subset.obj, 
-  y = prop.level, 
-  cell.types = colnames(prop.level), 
-  img = TRUE, 
+  x = subset.obj,
+  y = prop.level,
+  cell.types = colnames(prop.level),
+  img = TRUE,
   pie.scale = 0.4
-) + 
+) +
   scale_fill_manual(
-    values = viridis_pal(option = "turbo")(length(colnames(prop.level))), 
+    values = viridis_pal(option = "turbo")(length(colnames(prop.level))),
     breaks = colnames(prop.level)
   )
 
@@ -129,7 +129,7 @@ dev.off()
 
 data.dir <- "/data/mrd/spatial/Output/Rdata/05_deconv_zero/"
 saveRDS(
-  deconv, 
+  deconv,
   paste0(data.dir, "prop_data_v1_", gsub("[^A-Za-z0-9]", "_", image.name), ".RDS")
 )
 
