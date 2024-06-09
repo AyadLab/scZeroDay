@@ -16,6 +16,9 @@ library(viridis)
 library(RColorBrewer)
 library(paletteer)
 library(SPOTlight)
+library(VennDiagram)
+library(enrichR)
+library(data.table)
 
 mrd.theme <- readRDS("Output/mrd.fig.theme.RDS")
 umap.theme <- readRDS("Output/mrd.umap.theme.RDS")
@@ -971,13 +974,77 @@ dittoBarPlot(
   theme(legend.position = "right")
 dev.off()
 
+################################################################################
+# FIGURE 4, VENN ENRICHMENTS
+
+vs1.enriched <- readRDS(
+  "Output/Rdata/10_deg.corr/01_vs1.overlaps.enrichR_2024.05.31.RDS"
+)
+vs2.enriched <- readRDS(
+  "Output/Rdata/10_deg.corr/02_vs2.overlaps.enrichR_2024.05.31.RDS"
+)
+vs3.enriched <- readRDS(
+  "Output/Rdata/10_deg.corr/03_vs3.overlaps.enrichR_2024.05.31.RDS"
+)
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/04_VS1.Venn.EnrichR.GOBP_2024.06.03.pdf", height = 8, width = 12)
+plotEnrich(
+  vs1.enriched[[1]][which(vs1.enriched[[1]]$Adjusted.P.value < 0.05), ], # index 1 is GO_BP
+  showTerms = 25,
+  numChar = 40,
+  y = "Ratio",
+  orderBy = "P.value",
+  title = ""
+) +
+  geom_text(aes(label = Overlap), hjust = -0.2, colour = "black") +
+  theme_classic() +
+  mrd.theme +
+  theme(
+    legend.position = "right",
+    title = element_text(size = 12, colour = "black")
+  )
+dev.off()
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/04_VS2.Venn.EnrichR.GOBP_2024.06.03.pdf", height = 8, width = 12)
+plotEnrich(
+  vs2.enriched[[1]][which(vs2.enriched[[1]]$Adjusted.P.value < 0.05), ], # index 1 is GO_BP
+  showTerms = 25,
+  numChar = 40,
+  y = "Ratio",
+  orderBy = "P.value",
+  title = ""
+) +
+  geom_text(aes(label = Overlap), hjust = -0.2, colour = "black") +
+  theme_classic() +
+  mrd.theme +
+  theme(
+    legend.position = "right",
+    title = element_text(size = 12, colour = "black")
+  )
+dev.off()
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/04_VS3.Venn.EnrichR.GOBP_2024.06.03.pdf", height = 8, width = 12)
+plotEnrich(
+  vs3.enriched[[1]][which(vs3.enriched[[1]]$Adjusted.P.value < 0.05), ], # index 1 is GO_BP
+  showTerms = 25,
+  numChar = 40,
+  y = "Ratio",
+  orderBy = "P.value",
+  title = ""
+) +
+  geom_text(aes(label = Overlap), hjust = -0.2, colour = "black") +
+  theme_classic() +
+  mrd.theme +
+  theme(
+    legend.position = "right",
+    title = element_text(size = 12, colour = "black")
+  )
+dev.off()
 
 ################################################################################################################################################################
 # FIGURE 5, SPATIAL FIGURES
 
-# dir.create("Output/Figures/15_spatial_2024.05.09")
-
-spatial <- readRDS("Output/Rdata/15_spatial_2024.05.09/08_deconv_v5_2024.05.09.RDS")
+spatial <- readRDS("Output/Rdata/11_spatial/08_deconv_v5_2024.05.09.RDS")
 
 props.state <- data.frame(
   row.names = rownames(spatial@meta.data),
@@ -1162,3 +1229,404 @@ quant.ag %>%
   theme(legend.position = "right") +
   RotatedAxis()
 dev.off()
+
+# plot vs and non
+
+quant <- data.frame(
+  row.names = rownames(spatial@meta.data),
+  sliceID = spatial@meta.data$orig.ident,
+  VS1 = spatial@meta.data$propVS1,
+  VS2 = spatial@meta.data$propVS2,
+  VS3 = spatial@meta.data$propVS3,
+  Non = spatial@meta.data$propNON
+)
+
+quant <- quant[complete.cases(quant), ]
+glimpse(quant)
+
+quant.long <- quant %>%
+  pivot_longer(cols = -sliceID, names_to = "CellType", values_to = "Proportion")
+glimpse(quant.long)
+
+quant.ag <- quant.long %>%
+  aggregate(Proportion ~ sliceID + CellType, FUN = mean)
+glimpse(quant.ag)
+quant.ag$CellType <- factor(quant.ag$CellType, levels = c("VS1", "VS2", "VS3", "Non"))
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_spatial.bar.ALLNON_2024.06.09.pdf", height = 4, width = 8)
+quant.ag %>%
+  ggplot(aes(x = sliceID, y = Proportion, fill = CellType)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_fill_manual(
+    values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(levels(quant.ag$CellType))),
+    breaks = levels(quant.ag$CellType)
+  ) +
+  theme_minimal() +
+  mrd.theme +
+  theme(legend.position = "right") +
+  RotatedAxis()
+dev.off()
+
+
+################################################################################
+# GESECA PLOTS, CORRELATIONS
+
+files <- list.files(
+  "Output/Rdata/11_spatial/06_geseca/objects"
+)
+
+meta.list <- list()
+dir = "Output/Rdata/11_spatial/06_geseca/objects/"
+for (f in seq_along(files)) {
+  tmp <- readRDS(paste0(dir, files[f]))
+  meta <- tmp@meta.data
+
+  meta.list[[f]] <- meta
+}
+
+new <- rbindlist(meta.list, fill = TRUE)
+filt <- new[which(new$propNON < 0.2), ] # only use spots with < 20% non-neoplastic content
+
+#### IDENTIFY TERMS TO PLOT ####
+
+# filter only for columns with GOBP singscores
+terms <- colnames(filt)[grep("^sing_GOBP_", colnames(filt))]
+
+# VS1 correlations
+cor.res1 <- data.frame()
+for (e in seq_along(terms)) {
+  n <- filt # [which(filt$propVS1 > 0), ] # more permissive w/ VS1 bc fewer spots
+  x <- as.data.frame(n)[, which(colnames(n) == terms[e])]
+  c <- cor(x = x, y = n$sing_VS1, use = "complete.obs")
+  add <- c(terms[e], c)
+  cor.res1 <- rbind(cor.res1, add)
+}
+colnames(cor.res1) <- c("Term", "Corr")
+cor.res1$Corr <- as.double(cor.res1$Corr)
+range(cor.res1$Corr, na.rm = TRUE)
+vs1.keep <- cor.res1[which(cor.res1$Corr > 0.5), ]
+vs1.paths <- vs1.keep$Term
+vs1.paths
+
+# VS2 correlations
+cor.res2 <- data.frame()
+for (e in seq_along(terms)) {
+  n <- filt[which(filt$propVS2 > 0.5), ] # only use spots with predicted VS prop > 50%
+  x <- as.data.frame(n)[, which(colnames(n) == terms[e])]
+  if (length(x[complete.cases(x)]) > 0) {
+    c <- cor(x = x, y = n$sing_VS2, use = "complete.obs")
+    add <- c(terms[e], c)
+    cor.res2 <- rbind(cor.res2, add)
+  }
+  else { print(paste(terms[e], "does not have any singscores for VS2")) }
+}
+colnames(cor.res2) <- c("Term", "Corr")
+cor.res2$Corr <- as.double(cor.res2$Corr)
+range(cor.res2$Corr, na.rm = TRUE)
+vs2.keep <- cor.res2[which(cor.res2$Corr > 0.5), ]
+vs2.paths <- vs2.keep$Term
+vs2.paths
+
+# VS3 correlations
+cor.res3 <- data.frame()
+for (e in seq_along(terms)) {
+  n <- filt[which(filt$propVS3 > 0.5), ]
+  x <- as.data.frame(n)[, which(colnames(n) == terms[e])]
+  if (length(x[complete.cases(x)]) > 0) {
+    c <- cor(x = x, y = n$sing_VS3, use = "complete.obs")
+    add <- c(terms[e], c)
+    cor.res3 <- rbind(cor.res3, add)
+  }
+  else { print(paste(terms[e], "does not have any singscores for VS3")) }
+}
+colnames(cor.res3) <- c("Term", "Corr")
+cor.res3$Corr <- as.double(cor.res3$Corr)
+range(cor.res3$Corr, na.rm = TRUE)
+vs3.keep <- cor.res3[which(cor.res3$Corr > 0.3), ] # mostly downregulation of immune terms
+vs3.paths <- vs3.keep$Term
+vs3.paths
+
+#### ####
+
+dir.create("Output/Figures/XX_MAIN.FIGS.enhanced/05_enrich.corr")
+
+# examine VS1
+# vs1.enriched <- readRDS(
+#   "Output/Rdata/10_deg.corr/01_vs1.overlaps.enrichR_2024.05.31.RDS"
+# )
+# glimpse(vs1.enriched)
+# vs1.bp <- vs1.enriched$GO_Biological_Process_2021[which(vs1.enriched$GO_Biological_Process_2021$Adjusted.P.value < 0.05), ]
+# bp.terms <- vs1.bp$Term
+# vs1.to.plot <- intersect(bp.terms, vs1.paths) # terms are named differently in each...
+# grep("cell.", bp.terms, ignore.case = TRUE, value = TRUE)
+View(vs1.keep)
+
+# VS1 enrichment --
+dir.create("Output/Figures/XX_MAIN.FIGS.enhanced/05_enrich.corr/VS1")
+colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(4) # "#1B9E77" "#9B58A5" "#BBA90B" "#666666"
+
+make.corr <- function(data, paths, y_lab, vs, prop = 0, title = "", col) {
+
+  df <- as.data.frame(data)
+  prop.col <- colnames(df)[which(colnames(df) == paste0("prop", vs))]
+  df <- df[which(df[, prop.col] > prop), ]
+
+  if (nrow(df) == 0) {
+    stop("The filtered data frame is empty. No data to plot.")
+  }
+
+  mx <- max(df[, paths], na.rm = TRUE)
+  mn <- max(df[, y_lab], na.rm = TRUE)
+
+  pdf(paste0("Output/Figures/XX_MAIN.FIGS.enhanced/05_enrich.corr/", vs, "/", paths, "_2024.06.07.pdf"), height = 8, width = 8)
+  print(
+    df %>%
+      ggplot(aes(x = .data[[paths]], y = .data[[y_lab]])) +
+      geom_point() +
+      geom_smooth(method = "lm", col = col) +
+      stat_cor(
+        method = "pearson",
+        label.x = -0.1,
+        label.y = 0.95*mn,
+        aes(label = paste(after_stat(r.label), after_stat(p.label), sep = "~`,`~"))
+      ) +
+      labs(
+        title = title,
+        x = paths,
+        y = paste(vs, "Enrichment")
+      ) +
+      theme_minimal() +
+      mrd.theme
+  )
+  dev.off()
+
+}
+
+for (i in seq_along(vs1.paths)) {
+  make.corr(
+    filt,
+    vs1.paths[i],
+    "sing_VS1",
+    "VS1",
+    prop = 0.1,
+    col = "#1B9E77"
+  )
+}
+
+# VS2 enrichment --
+View(vs2.keep)
+dir.create("Output/Figures/XX_MAIN.FIGS.enhanced/05_enrich.corr/VS2")
+
+for (i in seq_along(vs2.paths)) {
+  make.corr(
+    filt,
+    vs2.paths[i],
+    "sing_VS2",
+    "VS2",
+    prop = 0.5,
+    col = "#9B58A5"
+  )
+}
+
+# VS3 enrichment --
+View(vs3.keep)
+dir.create("Output/Figures/XX_MAIN.FIGS.enhanced/05_enrich.corr/VS3")
+
+for (i in seq_along(vs3.paths)) {
+  make.corr(
+    filt,
+    vs3.paths[i],
+    "sing_VS3",
+    "VS3",
+    prop = 0.5,
+    col = "#BBA90B"
+  )
+}
+
+################################################################################
+# GESECA PLOTS, ENRICHMENT
+
+en.dir <- list.dirs(
+  "Output/Figures/11_spatial/06_geseca/"
+)
+
+path = "Output/Figures/11_spatial/06_geseca/"
+cand.vs1 <- c()
+cand.vs2 <- c()
+cand.vs3 <- c()
+for (d in seq_along(en.dir)[-1]) {
+  files <- list.files(
+    en.dir[d]
+  )
+  match.vs1 <- files[grep("GOBP_NEURON_DEVELOPMENT", files)]
+  match.vs2 <- files[grep("GOBP_POSITIVE_REGULATION_OF_CELL_POPULATION_PROLIFERATION", files)]
+  match.vs3 <- files[grep("GOBP_MICROTUBULE_BASED_PROCESS", files)]
+
+  cand.vs1 <- c(cand.vs1, match.vs1)
+  cand.vs2 <- c(cand.vs2, match.vs2)
+  cand.vs3 <- c(cand.vs3, match.vs3)
+}
+
+# vs1 plots
+cand.vs1
+
+ukf242.vs1 <- readRDS("Output/Rdata/11_spatial/06_geseca/objects/UKF242_T_ST_geseca.scored.obj_2024.06.03.RDS")
+ukf259 <- readRDS("Output/Rdata/11_spatial/06_geseca/objects/UKF259_T_ST_geseca.scored.obj_2024.06.03.RDS") # USE
+ukf313 <- readRDS("Output/Rdata/11_spatial/06_geseca/objects/UKF313_T_ST_geseca.scored.obj_2024.06.03.RDS")
+ukf255 <- readRDS("Output/Rdata/11_spatial/06_geseca/objects/UKF255_T_ST_geseca.scored.obj_2024.06.03.RDS")
+ukf251 <- readRDS("Output/Rdata/11_spatial/06_geseca/objects/UKF251_T_ST_geseca.scored.obj_2024.06.03.RDS")
+ukf248 <- readRDS("Output/Rdata/11_spatial/06_geseca/objects/UKF248_T_ST_geseca.scored.obj_2024.06.03.RDS")
+ukf243 <- readRDS("Output/Rdata/11_spatial/06_geseca/objects/UKF243_T_ST_geseca.scored.obj_2024.06.03.RDS")
+ukf334 <- readRDS("Output/Rdata/11_spatial/06_geseca/objects/UKF334_T_ST_geseca.scored.obj_2024.06.03.RDS")
+ukf269 <- readRDS("Output/Rdata/11_spatial/06_geseca/objects/UKF269_T_ST_geseca.scored.obj_2024.06.03.RDS")
+
+plot <- SpatialFeaturePlot(
+  ukf255,
+  features = "GOBP_NEURON_DEVELOPMENT",
+  combine = FALSE,
+  image.alpha = 0, alpha = 1,
+  pt.size.factor = 2.42, stroke = 0.8
+)[[1]]
+plot$scales$scales[plot$scales$find("fill")] <- NULL
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_VS1.UKF255.NEURON.DEVT_2024.06.07.pdf", height = 8, width = 8)
+plot +
+  scale_fill_gradientn(
+    limits = c(-5, 5), breaks = c(-5, 0, 5),
+    oob = scales::squish,
+    colors = c("darkblue", "white", "darkred"),
+    guide = "colourbar", name = "z-score"
+  ) +
+  theme(legend.position = theme_get()$legend.position)
+dev.off()
+
+# vs2 plots
+cand.vs2
+
+plot <- SpatialFeaturePlot(
+  ukf248,
+  features = "GOBP_POSITIVE_REGULATION_OF_CELL_POPULATION_PROLIFERATION",
+  combine = FALSE,
+  image.alpha = 0, alpha = 1,
+  pt.size.factor = 2.52, stroke = 0.8
+)[[1]]
+plot$scales$scales[plot$scales$find("fill")] <- NULL
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_VS2.UKF248.PROLIF_2024.06.07.pdf", height = 8, width = 8)
+plot +
+  scale_fill_gradientn(
+    limits = c(-3, 3), breaks = c(-3, 0, 3),
+    oob = scales::squish,
+    colors = c("darkblue", "white", "darkred"),
+    guide = "colourbar", name = "z-score"
+  ) +
+  theme(legend.position = theme_get()$legend.position)
+dev.off()
+
+# vs3 plots
+cand.vs3
+
+plot <- SpatialFeaturePlot(
+  ukf334,
+  features = "GOBP_MICROTUBULE_BASED_PROCESS",
+  combine = FALSE,
+  image.alpha = 0, alpha = 1,
+  pt.size.factor = 2.5, stroke = 0.8
+)[[1]]
+plot$scales$scales[plot$scales$find("fill")] <- NULL
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_VS3.UKF334.MICROTUBULE_2024.06.07.pdf", height = 8, width = 8)
+plot +
+  scale_fill_gradientn(
+    limits = c(-5, 5), breaks = c(-5, 0, 5),
+    oob = scales::squish,
+    colors = c("darkblue", "white", "darkred"),
+    guide = "colourbar", name = "z-score"
+  ) +
+  theme(legend.position = theme_get()$legend.position)
+dev.off()
+
+
+################################################################################
+# GESECA PLOTS, CONTRASTS
+
+# plot with just UKF334 data ----
+
+plot <- SpatialFeaturePlot(
+  ukf334,
+  features = "GOBP_REGULATION_OF_SYNAPTIC_PLASTICITY",
+  combine = FALSE,
+  image.alpha = 0, pt.size.factor = 2.5, stroke = 0.8
+)[[1]]
+plot$scales$scales[plot$scales$find("fill")] <- NULL
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF334.SYNAPTIC.PLAST.VS3_2024.06.07.pdf", height = 8, width = 8)
+plot +
+  scale_fill_gradientn(
+    limits = c(-5, 5), breaks = c(-5, 0, 5),
+    oob = scales::squish,
+    colors = c("darkblue", "white", "darkred"),
+    guide = "colourbar", name = "z-score"
+  ) +
+  theme(legend.position = theme_get()$legend.position)
+dev.off()
+
+plot <- SpatialFeaturePlot(
+  ukf334,
+  features = "GOBP_REGULATION_OF_IMMUNE_RESPONSE",
+  combine = FALSE,
+  image.alpha = 0, pt.size.factor = 2.5, stroke = 0.8
+)[[1]]
+plot$scales$scales[plot$scales$find("fill")] <- NULL
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF334.IMM.RESP.VS2_2024.06.07.pdf", height = 8, width = 8)
+plot +
+  scale_fill_gradientn(
+    limits = c(-3, 3), breaks = c(-3, 0, 3),
+    oob = scales::squish,
+    colors = c("darkblue", "white", "darkred"),
+    guide = "colourbar", name = "z-score"
+  ) +
+  theme(legend.position = theme_get()$legend.position)
+dev.off()
+
+# plot with just UKF269 data
+
+plot <- SpatialFeaturePlot(
+  ukf269,
+  features = "GOBP_REGULATION_OF_TRANS_SYNAPTIC_SIGNALING",
+  combine = FALSE,
+  image.alpha = 0, pt.size.factor = 2.5, stroke = 0.8
+)[[1]]
+plot$scales$scales[plot$scales$find("fill")] <- NULL
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF269.SYNAP.SIGNAL.VS3_2024.06.07.pdf", height = 8, width = 8)
+plot +
+  scale_fill_gradientn(
+    limits = c(-3, 3), breaks = c(-3, 0, 3),
+    oob = scales::squish,
+    colors = c("darkblue", "white", "darkred"),
+    guide = "colourbar", name = "z-score"
+  ) +
+  theme(legend.position = theme_get()$legend.position)
+dev.off()
+
+plot <- SpatialFeaturePlot(
+  ukf269,
+  features = "GOBP_ESTABLISHMENT_OF_PROTEIN_LOCALIZATION",
+  combine = FALSE,
+  image.alpha = 0, pt.size.factor = 2.5, stroke = 0.8
+)[[1]]
+plot$scales$scales[plot$scales$find("fill")] <- NULL
+
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF269.PROT.LOCAL.VS2_2024.06.07.pdf", height = 8, width = 8)
+plot +
+  scale_fill_gradientn(
+    limits = c(-3, 3), breaks = c(-3, 0, 3),
+    oob = scales::squish,
+    colors = c("darkblue", "white", "darkred"),
+    guide = "colourbar", name = "z-score"
+  ) +
+  theme(legend.position = theme_get()$legend.position)
+dev.off()
+
