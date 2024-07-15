@@ -5,4 +5,9 @@
 .DS_Store
 .quarto
 data
-Output/Rdata
+Output
+cognitive.seeds.Rproj
+.Rbuildignore
+DESCRIPTION
+NAMESPACE
+
