@@ -218,6 +218,22 @@ FeaturePlot(
   )
 dev.off()
 
+pdf("Output/Figures/07_suter_2024.05.06/Features/06_GFAP_2023.11.03.pdf", height = 4, width = 4)
+FeaturePlot(
+  suter,
+  reduction = "umap",
+  slot = "scale.data",
+  min.cutoff = 0,
+  features = c("GFAP"),
+  order = TRUE, raster = FALSE
+) +
+  umap.theme +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 14, colour = "black")
+  )
+dev.off()
+
 ################################################################################
 # MODULE SCORE PLOTS
 

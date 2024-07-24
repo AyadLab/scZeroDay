@@ -119,9 +119,9 @@ write.table(
 )
 
 # qq plot for quality control
-pdf("Output/Figures/01_essential.genes/00_GBM_QQ_2024.01.31.pdf", height = 8, width = 8)
+pdf("Output/Figures/01_essential.genes/00_GBM_QQ_2024.07.08.pdf", height = 8, width = 8)
 qqt(gbm.fit$t, df = gbm.fit$df.prior+gbm.fit$df.residual, pch = 16, cex = 0.2)
-abline(0, 0) # abline(0, 1)
+abline(0, 1)
 dev.off()
 
 # save metadata of n = 49 GBM cell lines

@@ -6,10 +6,9 @@ library(dittoSeq)
 library(RColorBrewer)
 library(paletteer)
 library(VennDiagram)
-library(enrichR)
 
-dir.create("Output/Figures/10_deg.corr")
-dir.create("Output/Rdata/10_deg.corr")
+# dir.create("Output/Figures/10_deg.corr")
+# dir.create("Output/Rdata/10_deg.corr")
 
 ################################################################################
 # READ IN DEG
@@ -127,8 +126,10 @@ draw.triple.venn(
 dev.off()
 
 ################################################################################
-# OVERLAPPING GENES ENRICHMENT ANALYSIS
+# ENRICHMENT OF OVERLAPPING GENES
 
+
+library(enrichR)
 mrd.theme <- readRDS("Output/mrd.fig.theme.RDS")
 
 ds <- listEnrichrDbs()
@@ -148,24 +149,24 @@ dir.create("Output/Figures/10_deg.corr/enrichR")
 
 for (j in 1:length(vs1.enriched)) {
 
-  # pdf(paste0("Output/Figures/10_deg.corr/enrichR/p0", j, "_VS1_overlaps_enrichr.Ratio_", dbs[j], "_2024.05.31.pdf"), height = 8, width = 10)
-  # print(
-  #   plotEnrich(
-  #     vs1.enriched[[j]][which(vs1.enriched[[j]]$Adjusted.P.value < 0.05), ],
-  #     showTerms = 10,
-  #     numChar = 40,
-  #     y = "Ratio",
-  #     orderBy = "P.value",
-  #     title = ""
-  #   ) +
-  #     theme_classic() +
-  #     mrd.theme +
-  #     theme(
-  #       legend.position = "right",
-  #       title = element_text(size = 12, colour = "black")
-  #     )
-  # )
-  # dev.off()
+  pdf(paste0("Output/Figures/10_deg.corr/enrichR/p0", j, "_VS1_overlaps_enrichr.Ratio_", dbs[j], "_2024.05.31.pdf"), height = 8, width = 10)
+  print(
+    plotEnrich(
+      vs1.enriched[[j]][which(vs1.enriched[[j]]$Adjusted.P.value < 0.05), ],
+      showTerms = 10,
+      numChar = 40,
+      y = "Ratio",
+      orderBy = "P.value",
+      title = ""
+    ) +
+      theme_classic() +
+      mrd.theme +
+      theme(
+        legend.position = "right",
+        title = element_text(size = 12, colour = "black")
+      )
+  )
+  dev.off()
 
   pdf(paste0("Output/Figures/10_deg.corr/enrichR/p0", j, "_VS1_overlaps_enrichr.Ratio_50.terms_", dbs[j], "_2024.05.31.pdf"), height = 8, width = 10)
   print(
@@ -191,24 +192,24 @@ for (j in 1:length(vs1.enriched)) {
 
 for (j in 1:length(vs2.enriched)) {
 
-  # pdf(paste0("Output/Figures/10_deg.corr/enrichR/p0", j, "_VS2_overlaps_enrichr.Ratio_", dbs[j], "_2024.05.31.pdf"), height = 8, width = 10)
-  # print(
-  #   plotEnrich(
-  #     vs2.enriched[[j]][which(vs2.enriched[[j]]$Adjusted.P.value < 0.05), ],
-  #     showTerms = 10,
-  #     numChar = 40,
-  #     y = "Ratio",
-  #     orderBy = "P.value",
-  #     title = ""
-  #   ) +
-  #     theme_classic() +
-  #     mrd.theme +
-  #     theme(
-  #       legend.position = "right",
-  #       title = element_text(size = 12, colour = "black")
-  #     )
-  # )
-  # dev.off()
+  pdf(paste0("Output/Figures/10_deg.corr/enrichR/p0", j, "_VS2_overlaps_enrichr.Ratio_", dbs[j], "_2024.05.31.pdf"), height = 8, width = 10)
+  print(
+    plotEnrich(
+      vs2.enriched[[j]][which(vs2.enriched[[j]]$Adjusted.P.value < 0.05), ],
+      showTerms = 10,
+      numChar = 40,
+      y = "Ratio",
+      orderBy = "P.value",
+      title = ""
+    ) +
+      theme_classic() +
+      mrd.theme +
+      theme(
+        legend.position = "right",
+        title = element_text(size = 12, colour = "black")
+      )
+  )
+  dev.off()
 
   pdf(paste0("Output/Figures/10_deg.corr/enrichR/p0", j, "_VS2_overlaps_enrichr.Ratio_50.terms_", dbs[j], "_2024.05.31.pdf"), height = 8, width = 10)
   print(
@@ -234,24 +235,24 @@ for (j in 1:length(vs2.enriched)) {
 
 for (j in 1:length(vs3.enriched)) {
 
-  # pdf(paste0("Output/Figures/10_deg.corr/enrichR/p0", j, "_VS3_overlaps_enrichr.Ratio_", dbs[j], "_2024.05.31.pdf"), height = 8, width = 10)
-  # print(
-  #   plotEnrich(
-  #     vs3.enriched[[j]][which(vs3.enriched[[j]]$Adjusted.P.value < 0.05), ],
-  #     showTerms = 10,
-  #     numChar = 40,
-  #     y = "Ratio",
-  #     orderBy = "P.value",
-  #     title = ""
-  #   ) +
-  #     theme_classic() +
-  #     mrd.theme +
-  #     theme(
-  #       legend.position = "right",
-  #       title = element_text(size = 12, colour = "black")
-  #     )
-  # )
-  # dev.off()
+  pdf(paste0("Output/Figures/10_deg.corr/enrichR/p0", j, "_VS3_overlaps_enrichr.Ratio_", dbs[j], "_2024.05.31.pdf"), height = 8, width = 10)
+  print(
+    plotEnrich(
+      vs3.enriched[[j]][which(vs3.enriched[[j]]$Adjusted.P.value < 0.05), ],
+      showTerms = 10,
+      numChar = 40,
+      y = "Ratio",
+      orderBy = "P.value",
+      title = ""
+    ) +
+      theme_classic() +
+      mrd.theme +
+      theme(
+        legend.position = "right",
+        title = element_text(size = 12, colour = "black")
+      )
+  )
+  dev.off()
 
   pdf(paste0("Output/Figures/10_deg.corr/enrichR/p0", j, "_VS3_overlaps_enrichr.Ratio_50.terms_", dbs[j], "_2024.05.31.pdf"), height = 8, width = 10)
   print(

@@ -989,7 +989,7 @@ vs3.enriched <- readRDS(
 
 pdf("Output/Figures/XX_MAIN.FIGS.enhanced/04_VS1.Venn.EnrichR.GOBP_2024.06.03.pdf", height = 8, width = 12)
 plotEnrich(
-  vs1.enriched[[1]][which(vs1.enriched[[1]]$Adjusted.P.value < 0.05), ], # index 1 is GO_BP
+  vs1.enriched[[1]][which(vs1.enriched[[1]]$Adjusted.P.value < 0.05), ], # index 2 is GO_MF
   showTerms = 25,
   numChar = 40,
   y = "Ratio",
@@ -1007,7 +1007,7 @@ dev.off()
 
 pdf("Output/Figures/XX_MAIN.FIGS.enhanced/04_VS2.Venn.EnrichR.GOBP_2024.06.03.pdf", height = 8, width = 12)
 plotEnrich(
-  vs2.enriched[[1]][which(vs2.enriched[[1]]$Adjusted.P.value < 0.05), ], # index 1 is GO_BP
+  vs2.enriched[[1]][which(vs2.enriched[[1]]$Adjusted.P.value < 0.05), ], # index 2 is GO_MF
   showTerms = 25,
   numChar = 40,
   y = "Ratio",
@@ -1025,7 +1025,7 @@ dev.off()
 
 pdf("Output/Figures/XX_MAIN.FIGS.enhanced/04_VS3.Venn.EnrichR.GOBP_2024.06.03.pdf", height = 8, width = 12)
 plotEnrich(
-  vs3.enriched[[1]][which(vs3.enriched[[1]]$Adjusted.P.value < 0.05), ], # index 1 is GO_BP
+  vs3.enriched[[1]][which(vs3.enriched[[1]]$Adjusted.P.value < 0.05), ], # index 2 is GO_MF
   showTerms = 25,
   numChar = 40,
   y = "Ratio",
@@ -1106,7 +1106,7 @@ for (i in 1:length(run)) {
 
 slice <- "UKF243_T_ST"
 spots <- WhichCells(spatial, idents = slice)
-pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF243_spatial.emty.pie_2024.05.09.pdf")
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF243_spatial.emty.pie_2024.05.09.pdf", height = 8, width = 8)
 plotSpatialScatterpie(
   x = spatial,
   y = props.state[spots, ],
@@ -1122,7 +1122,7 @@ dev.off()
 
 slice <- "UKF260_T_ST"
 spots <- WhichCells(spatial, idents = slice)
-pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF260_spatial.emty.pie_2024.05.09.pdf")
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF260_spatial.emty.pie_2024.05.09.pdf", height = 8, width = 8)
 plotSpatialScatterpie(
   x = spatial,
   y = props.state[spots, ],
@@ -1138,13 +1138,66 @@ dev.off()
 
 slice <- "UKF269_T_ST"
 spots <- WhichCells(spatial, idents = slice)
-pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF269_spatial.emty.pie_2024.05.09.pdf")
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF269_spatial.emty.pie_2024.05.09.pdf", height = 8, width = 8)
 plotSpatialScatterpie(
   x = spatial,
   y = props.state[spots, ],
   cell_types = colnames(props.state),
   img = FALSE, slice = slice, ####
   pie_scale = 0.45, scatterpie_alpha = 1.0
+) +
+  scale_fill_manual(
+    values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(colnames(props.state))),
+    breaks = colnames(props.state)
+  )
+dev.off()
+
+# 248, 255, 334 : less spaces between spots (increase pie_scale)
+# to supplement below figures
+
+slice <- "UKF248_T_ST"
+spots <- WhichCells(spatial, idents = slice)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF248_spatial.emty.pie_2024.06.09.pdf", height = 8, width = 8)
+plotSpatialScatterpie(
+  x = spatial,
+  y = props.state[spots, ],
+  cell_types = colnames(props.state),
+  img = FALSE, slice = slice, ####
+  pie_scale = 0.42, scatterpie_alpha = 1.0
+) +
+  scale_fill_manual(
+    values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(colnames(props.state))),
+    breaks = colnames(props.state)
+  )
+dev.off()
+
+
+slice <- "UKF255_T_ST"
+spots <- WhichCells(spatial, idents = slice)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF255_spatial.emty.pie_2024.06.09.pdf", height = 8, width = 8)
+plotSpatialScatterpie(
+  x = spatial,
+  y = props.state[spots, ],
+  cell_types = colnames(props.state),
+  img = FALSE, slice = slice, ####
+  pie_scale = 0.53, scatterpie_alpha = 1.0
+) +
+  scale_fill_manual(
+    values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(colnames(props.state))),
+    breaks = colnames(props.state)
+  )
+dev.off()
+
+
+slice <- "UKF334_T_ST"
+spots <- WhichCells(spatial, idents = slice)
+pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_UKF334_spatial.emty.pie_2024.06.09.pdf", height = 8, width = 8)
+plotSpatialScatterpie(
+  x = spatial,
+  y = props.state[spots, ],
+  cell_types = colnames(props.state),
+  img = FALSE, slice = slice, ####
+  pie_scale = 0.42, scatterpie_alpha = 1.0
 ) +
   scale_fill_manual(
     values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(colnames(props.state))),
@@ -1182,7 +1235,21 @@ quant.ag <- quant.long %>%
 glimpse(quant.ag)
 quant.ag$CellType <- factor(quant.ag$CellType, levels = c("VS1", "VS2", "VS3", "Astrocytes", "Endothelial", "Fibroblast", "Myeloid", "Oligodendrocyte", "T.Cell"))
 
-#### can plot all cell types here
+# #### can plot all cell types here
+# pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_spatial.bar.ALL_2024.06.09.pdf", height = 4, width = 8)
+# quant.ag %>%
+#   ggplot(aes(x = sliceID, y = Proportion, fill = CellType)) +
+#   geom_bar(stat = "identity", position = "fill") +
+#   scale_fill_manual(
+#     values = colorRampPalette(paletteer_d(palette = "RColorBrewer::Dark2", 8))(length(levels(quant.ag$CellType))+1),
+#     breaks = levels(quant.ag$CellType)
+#   ) +
+#   theme_minimal() +
+#   mrd.theme +
+#   theme(legend.position = "right") +
+#   RotatedAxis()
+# dev.off()
+
 
 non <- c("Astrocytes", "Endothelial", "Fibroblast", "Myeloid", "Oligodendrocyte", "T.Cell")
 quant.ag <- quant.ag[-which(quant.ag$CellType %in% non), ]
@@ -1285,7 +1352,8 @@ for (f in seq_along(files)) {
 }
 
 new <- rbindlist(meta.list, fill = TRUE)
-filt <- new[which(new$propNON < 0.2), ] # only use spots with < 20% non-neoplastic content
+filt <- new[which(new$propNON < 0.20), ] # only use spots with < 20% non-neoplastic content (>=80% np content) ##########
+# filt <- new[which(new$propNP > 0.25), ]
 
 #### IDENTIFY TERMS TO PLOT ####
 
@@ -1297,7 +1365,7 @@ cor.res1 <- data.frame()
 for (e in seq_along(terms)) {
   n <- filt # [which(filt$propVS1 > 0), ] # more permissive w/ VS1 bc fewer spots
   x <- as.data.frame(n)[, which(colnames(n) == terms[e])]
-  c <- cor(x = x, y = n$sing_VS1, use = "complete.obs")
+  c <- cor(x = x, y = n$sing_VS1, use = "complete.obs") # method = pearson
   add <- c(terms[e], c)
   cor.res1 <- rbind(cor.res1, add)
 }
@@ -1629,4 +1697,132 @@ plot +
   ) +
   theme(legend.position = theme_get()$legend.position)
 dev.off()
+
+
+
+
+
+
+################################################################################
+
+dir.create("Output/Figures/XX_MAIN.FIGS.enhanced/05_vs.dim")
+
+objects <- list.files(
+  "Output/Rdata/11_spatial/06_geseca/objects"
+)
+
+path = "Output/Rdata/11_spatial/06_geseca/objects/"
+for (obj in 1:length(objects)) {
+  rd <- readRDS(paste0(path, objects[obj]))
+  tumor <- unique(rd$orig.ident)
+
+  # add vs assignment based on singscore
+  sing.df <- data.frame(
+    row.names = rownames(rd@meta.data),
+    mVC1 = rd@meta.data$sing_VS1,
+    mVC2 = rd@meta.data$sing_VS2,
+    mVC3 = rd@meta.data$sing_VS3
+  )
+  assigns <- data.frame(
+    row.names = rownames(rd@meta.data)
+  )
+  assigns$cell.state <- "Ambiguous"
+  for (i in 1:length(rownames(sing.df))) {
+    state <- which.max(sing.df[i, ])
+    assigns$cell.state[i] <- names(state)
+  }
+  rd <- AddMetaData(rd, metadata = assigns, col.name = "VS")
+
+  # # subset to match correlation subset
+  # neo <- WhichCells(rd, expression = propNON < 0.20)
+  # rd <- subset(rd, cells = neo)
+  plot <- SpatialDimPlot(
+    rd,
+    group.by = "VS", image.alpha = 0,
+    pt.size.factor = 2.15, stroke = 0.8
+  )[[1]]
+  plot$scales$scales[plot$scales$find("fill")] <- NULL
+
+  cols <- c("mVC1" = "#1B9E77", "mVC2" = "#9B58A5", "mVC3" = "#BBA90B")
+  # plot dim plot of vs
+  pdf(paste0("Output/Figures/XX_MAIN.FIGS.enhanced/05_vs.dim/", tumor, "Dim.Plot_2024.06.26.pdf"), height = 8, width = 8)
+  print(
+    plot +
+      scale_fill_manual(
+        values = cols,
+        aesthetics = c("fill")
+      )
+  )
+  dev.off()
+
+  # # plot singscore as feature plot
+  # for (m in 1:length(unique(rd$VS))){
+  #
+  # }
+}
+
+
+
+# plot <- SpatialFeaturePlot(
+#   rd,
+#   features = "sing_VS1",
+#   combine = FALSE,
+#   image.alpha = 0, alpha = 1,
+#   pt.size.factor = 2.42, stroke = 0.8
+# )[[1]]
+# plot$scales$scales[plot$scales$find("fill")] <- NULL
+#
+# pdf("Output/Figures/XX_MAIN.FIGS.enhanced/05_VS1.UKF255.NEURON.DEVT_2024.06.07.pdf", height = 8, width = 8)
+# plot +
+#   scale_fill_gradientn(
+#     limits = c(-5, 5), breaks = c(-5, 0, 5),
+#     oob = scales::squish,
+#     colors = c("darkblue", "white", "darkred"),
+#     guide = "colourbar", name = "VS1 singscore"
+#   ) +
+#   theme(legend.position = theme_get()$legend.position)
+# dev.off()
+
+
+
+################################################################################
+# GESECA PLOTS, ENRICHMENT, SUPPLEMENTARY FIGURES
+
+en.dir <- list.dirs(
+  "Output/Figures/11_spatial/06_geseca/"
+)
+
+path = "Output/Figures/11_spatial/06_geseca/"
+cand.vs1 <- c()
+cand.vs2 <- c()
+cand.vs3 <- c()
+for (d in seq_along(en.dir)[-1]) {
+  files <- list.files(
+    en.dir[d]
+  )
+  match.vs1 <- files[grep("GOBP_NEUROTRANSMITTER_SECRETION", files)]
+  match.vs2 <- files[grep("GOBP_REGULATION_OF_CELL_DEATH", files)]
+  match.vs3 <- files[grep("GOBP_OXIDATIVE_PHOSPHORYLATION", files)]
+
+  cand.vs1 <- c(cand.vs1, match.vs1)
+  cand.vs2 <- c(cand.vs2, match.vs2)
+  cand.vs3 <- c(cand.vs3, match.vs3)
+}
+
+
+cand.vs1
+# NEURON_DIFFERENTIATION: 256TC, 304
+# INHIBITORY_SYNAPSE_ASSEMBLY: 269
+# REGULATION_OF_SYNAPTIC_PLASTICITY: 242
+# NEUROTRANSMITTER_SECRETION
+cand.vs2
+# CELL POPULARION PROLIFERATION: 256TI, 260
+# CELLULAR_RESPONSE_TO_STRESS: 243, 255, 275
+# INFLAMMATORY_RESPONSE: 248
+# REGULATION_OF_CELL_DEATH
+cand.vs3
+# TRANSPORT ALONG MICROTUBULE:256TC
+# AEROBIC_RESPIRATION: 265TC
+# ELECTRON_TRANSPORT_CHAIN
+# OXIDATIVE_PHOSPHORYLATION
 
