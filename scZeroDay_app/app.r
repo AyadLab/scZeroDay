@@ -220,7 +220,7 @@ ui <- fluidPage(
                 ),
 
                 tabPanel(
-                  title = "WikiPathways",
+                  title = "WikiPathway",
                   br(),
                   DTOutput("enrichr_wiki")
                 ),
@@ -866,8 +866,8 @@ server <- function(input, output, session) {
     req(enrichment_results())
     enrich_data <- enrichment_results()
 
-    if (!is.null(enrich_data) && "WikiPathways_2024" %in% names(enrich_data)) {
-      df <- enrich_data$WikiPathways_2024 %>%
+    if (!is.null(enrich_data) && "WikiPathway_2024" %in% names(enrich_data)) {
+      df <- enrich_data$WikiPathway_2024 %>%
         filter(Adjusted.P.value < 0.05) %>%
         select(Term, Overlap, P.value, Adjusted.P.value, Genes) %>%
         arrange(P.value)
