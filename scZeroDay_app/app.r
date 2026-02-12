@@ -4,6 +4,9 @@ library(plyr)
 library(dplyr)
 library(tibble)
 library(DT)
+library(plotly)
+library(enrichR)
+library(openxlsx)
 
 # UI Definition
 ui <- fluidPage(
@@ -13,9 +16,9 @@ ui <- fluidPage(
   div(
     style = "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
              padding: 30px; margin: -15px -15px 30px -15px;",
-    h1("Cancer Cell Line Gene Analysis",
+    h1("scZeroDay",
        style = "color: white; font-weight: 600; margin: 0;"),
-    p("Interactive analysis and visualization tool",
+    p("Interactive gene essentiality analysis and visualization tool",
       style = "color: rgba(255,255,255,0.9); margin-top: 10px; margin-bottom: 0;")
   ),
 
@@ -36,7 +39,7 @@ ui <- fluidPage(
         div(
           style = "margin-bottom: 25px;",
           fileInput("efx_file",
-                    label = div(icon("upload"), " Upload Effect Score File"),
+                    label = div(icon("upload"), " (1) Upload Effect Score File"),
                     accept = c(".csv"),
                     buttonLabel = "Browse",
                     placeholder = "No file selected")
@@ -46,10 +49,19 @@ ui <- fluidPage(
         div(
           style = "margin-bottom: 25px;",
           fileInput("file",
-                    label = div(icon("upload"), " Upload Metadata File"),
+                    label = div(icon("upload"), " (2) Upload Metadata File"),
                     accept = c(".csv"),
                     buttonLabel = "Browse",
                     placeholder = "No file selected")
+        ),
+
+        # Lineage column selector
+        div(
+          style = "margin-bottom: 25px;",
+          selectInput("lineage_column",
+                      label = div(icon("columns"), " (3) Select Lineage Column"),
+                      choices = NULL,
+                      selected = NULL)
         ),
 
         hr(style = "border-color: #dee2e6;"),
@@ -58,7 +70,7 @@ ui <- fluidPage(
         div(
           style = "margin-bottom: 10px;",
           selectizeInput("cellline",
-                         label = div(icon("dna"), " Select Cancer Lineage(s)"),
+                         label = div(icon("dna"), " (4) Select Lineage(s) of Interest"),
                          choices = NULL,
                          selected = NULL,
                          multiple = TRUE,
@@ -78,29 +90,29 @@ ui <- fluidPage(
         div(
           style = "margin-bottom: 20px;",
           numericInput("pvalue",
-                       label = div(icon("chart-line"), " P-value Threshold"),
+                       label = div(icon("chart-line"), " (5) P-value Threshold"),
                        value = 0.05,
                        min = 0,
                        max = 1,
                        step = 0.01)
         ),
 
-        # Mean effect score cutoff
+        # Effect size cutoff
         div(
           style = "margin-bottom: 20px;",
-          numericInput("mean_effect",
-                       label = div(icon("calculator"), " Mean Effect Score Cutoff"),
+          numericInput("effect_size",
+                       label = div(icon("arrows-alt-h"), " (6) Effect Size Cutoff"),
                        value = 0,
                        max = +Inf,
                        min = -Inf,
                        step = 0.1)
         ),
 
-        # Effect size cutoff
+        # Mean effect score cutoff
         div(
           style = "margin-bottom: 20px;",
-          numericInput("effect_size",
-                       label = div(icon("arrows-alt-h"), " Effect Size Cutoff"),
+          numericInput("mean_effect",
+                       label = div(icon("calculator"), " (7) Mean Effect Score Cutoff"),
                        value = 0,
                        max = +Inf,
                        min = -Inf,
@@ -170,7 +182,61 @@ ui <- fluidPage(
 
               hr(style = "margin-top: 10px; margin-bottom: 20px;"),
 
-              plotOutput("volcano_plot", height = "600px")
+              plotlyOutput("volcano_plot", height = "600px")
+            )
+          ),
+
+          # Pathway Enrichment Tab
+          tabPanel(
+            title = div(icon("project-diagram"), " Pathway Enrichment"),
+            value = "enrichment_tab",
+            br(),
+
+            div(
+              style = "background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);",
+
+              div(
+                style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;",
+                h4("Pathway Enrichment Analysis", style = "margin: 0; color: #333;"),
+                downloadButton("download_enrichment",
+                               label = "Download Results",
+                               class = "btn-success",
+                               style = "border: none;")
+              ),
+
+              hr(style = "margin-top: 10px; margin-bottom: 20px;"),
+
+              p("Enrichment analysis of filtered genes using multiple pathway databases:",
+                style = "color: #666; margin-bottom: 20px;"),
+
+              tabsetPanel(
+                id = "enrichment_tabs",
+                type = "tabs",
+
+                tabPanel(
+                  title = "KEGG",
+                  br(),
+                  DTOutput("enrichr_kegg")
+                ),
+
+                tabPanel(
+                  title = "WikiPathways",
+                  br(),
+                  DTOutput("enrichr_wiki")
+                ),
+
+                tabPanel(
+                  title = "Reactome",
+                  br(),
+                  DTOutput("enrichr_reactome")
+                ),
+
+                tabPanel(
+                  title = "MSigDB Hallmark",
+                  br(),
+                  DTOutput("enrichr_msigdb")
+                )
+              )
             )
           ),
 
@@ -197,7 +263,7 @@ ui <- fluidPage(
   # Footer
   div(
     style = "text-align: center; padding: 20px; margin-top: 40px; color: #6c757d; border-top: 1px solid #dee2e6;",
-    p("Cancer Cell Line Analysis Tool | Built with Shiny", style = "margin: 0;")
+    p("scZeroDay | Built with Shiny", style = "margin: 0;")
   )
 )
 
@@ -210,7 +276,11 @@ server <- function(input, output, session) {
   meta.data <- reactiveVal(NULL)
 
   # Reactive value to store filtered results
+  raw <- reactiveVal(NULL)
   filtered_data <- reactiveVal(NULL)
+
+  # Reactive value to store enrichment results
+  enrichment_results <- reactiveVal(NULL)
 
   # Load and process uploaded file, effect scores
   observeEvent(input$efx_file, {
@@ -238,18 +308,32 @@ server <- function(input, output, session) {
       df <- df[match(rownames(efx.data()), rownames(df)),]
       meta.data(df)
 
-      # Update cell line choices if OncotreeSubtype column exists
-      if ("OncotreeSubtype" %in% colnames(df)) {
-        cell_lines <- unique(df$OncotreeSubtype)
+      # Update lineage column choices with all column names
+      updateSelectInput(session, "lineage_column",
+                        choices = colnames(df),
+                        selected = if ("OncotreeSubtype" %in% colnames(df)) "OncotreeSubtype" else colnames(df)[1])
+
+      showNotification("Metadata loaded successfully!", type = "message", duration = 3)
+
+    }, error = function(e) {
+      showNotification(paste("Error loading file:", e$message), type = "error", duration = 5)
+    })
+  })
+
+  # Update cell line choices when lineage column is selected
+  observeEvent(input$lineage_column, {
+    req(meta.data(), input$lineage_column)
+
+    tryCatch({
+      df <- meta.data()
+      if (input$lineage_column %in% colnames(df)) {
+        cell_lines <- unique(df[[input$lineage_column]])
         updateSelectizeInput(session, "cellline",
                              choices = cell_lines,
                              selected = NULL)
       }
-
-      showNotification("Data loaded successfully!", type = "message", duration = 3)
-
     }, error = function(e) {
-      showNotification(paste("Error loading file:", e$message), type = "error", duration = 5)
+      showNotification(paste("Error updating cell line choices:", e$message), type = "error", duration = 5)
     })
   })
 
@@ -266,8 +350,8 @@ server <- function(input, output, session) {
     } else {
       # Count total cell lines across selected lineages
       total_cell_lines <- 0
-      if (!is.null(meta.data()) && "OncotreeSubtype" %in% colnames(meta.data())) {
-        total_cell_lines <- sum(meta.data()$OncotreeSubtype %in% selected)
+      if (!is.null(meta.data()) && !is.null(input$lineage_column) && input$lineage_column %in% colnames(meta.data())) {
+        total_cell_lines <- sum(meta.data()[[input$lineage_column]] %in% selected)
       }
 
       div(
@@ -286,7 +370,7 @@ server <- function(input, output, session) {
 
   # Run analysis when button is clicked
   observeEvent(input$analyze, {
-    req(meta.data(), efx.data(), input$cellline)
+    req(meta.data(), efx.data(), input$cellline, input$lineage_column)
 
     if (length(input$cellline) == 0) {
       showNotification("Please select at least one cancer lineage", type = "warning", duration = 3)
@@ -299,6 +383,21 @@ server <- function(input, output, session) {
     if (length(rownames(efx.data())) == 0) {
       showNotification("Error: Effects Data not loaded appropriately", type = "error", duration = 3)
       return()
+    }
+    if (!input$lineage_column %in% colnames(meta.data())) {
+      showNotification("Error: Selected lineage column not found in metadata", type = "error", duration = 3)
+      return()
+    }
+
+    # Check cell line count and warn if fewer than 10
+    total_cell_lines <- sum(meta.data()[[input$lineage_column]] %in% input$cellline)
+    if (total_cell_lines < 10) {
+      showNotification(
+        paste0("Warning: Only ", total_cell_lines, " cell line(s) selected. ",
+               "Fewer than 10 cell lines may impact statistical validity."),
+        type = "warning",
+        duration = 8
+      )
     }
 
     withProgress(message = 'Running analysis...', value = 0, {
@@ -385,7 +484,7 @@ server <- function(input, output, session) {
         }
 
       # Create binary indicator: 1 if cell line matches selected lineages, 0 otherwise
-      ind.var <- as.numeric(meta.data()$OncotreeSubtype %in% input$cellline)
+      ind.var <- as.numeric(meta.data()[[input$lineage_column]] %in% input$cellline)
 
       # Run limma analysis comparing selected lineages vs others
       res1 <- run_stats(
@@ -401,7 +500,7 @@ server <- function(input, output, session) {
 
       # Get the effect scores for only the selected lineages to calculate mean
       effects_subset <- efx.data() %>%
-        subset(rownames(efx.data()) %in% rownames(meta.data())[which(meta.data()$OncotreeSubtype %in% input$cellline)])
+        subset(rownames(efx.data()) %in% rownames(meta.data())[which(meta.data()[[input$lineage_column]] %in% input$cellline)])
 
       # Calculate mean effect scores across selected cell lines
       mean_effects <- effects_subset %>%
@@ -415,8 +514,37 @@ server <- function(input, output, session) {
                Mean_Effect < input$mean_effect,
                EffectSize < input$effect_size)
 
+      res2 <- res1 %>%
+        left_join(mean_effects, by = "Gene")
+
+      incProgress(0.7, detail = "Running pathway enrichment...")
+
+      # Run enrichment analysis if there are filtered genes
+      enrichment_data <- NULL
+      if (nrow(results) > 0) {
+        tryCatch({
+          gene_list <- results$Gene
+
+          # Run enrichR on multiple databases
+          dbs <- c("KEGG_2026", "WikiPathway_2024_Human", "Reactome_Pathways_2024", "MSigDB_Hallmark_2020") ### Update database names to match enrichR's current offerings
+          enrichment_data <- enrichr(gene_list, dbs)
+
+          # Rename the list elements for clearer display
+          names(enrichment_data) <- c("KEGG_2026", "WikiPathway_2024", "Reactome_2024", "MSigDB_Hallmark_2020")
+
+        }, error = function(e) {
+          showNotification(
+            paste("Warning: Enrichment analysis failed:", e$message),
+            type = "warning",
+            duration = 5
+          )
+        })
+      }
+
       incProgress(1, detail = "Analysis complete")
+      raw(res2)
       filtered_data(results)
+      enrichment_results(enrichment_data)
 
       showNotification(
         paste("Analysis complete!", nrow(results), "genes meet the criteria"),
@@ -446,26 +574,36 @@ server <- function(input, output, session) {
     )
   })
 
-  # Generate volcano plot
-  output$volcano_plot <- renderPlot({
-    req(filtered_data())
+  # Generate interactive volcano plot
+  output$volcano_plot <- renderPlotly({
+    req(filtered_data(), raw())
 
     # Create volcano plot using actual results data
-    plot_data <- filtered_data() %>%
-      mutate(neg_log10_pval = -log10(q.value))
+    plot_data <- raw() %>%
+      mutate(neg_log10_pval = -log10(q.value),
+             # Create custom hover text
+             hover_text = paste0(
+               "<b>Gene:</b> ", Gene, "<br>",
+               "<b>Effect Size:</b> ", round(EffectSize, 4), "<br>",
+               "<b>Mean Effect:</b> ", round(Mean_Effect, 4), "<br>",
+               "<b>q-value:</b> ", formatC(q.value, format = "e", digits = 3)
+             ))
 
-    ggplot(plot_data, aes(x = EffectSize, y = neg_log10_pval)) +
+    # Identify filtered/highlighted points
+    filtered_genes <- filtered_data()$Gene
+
+    p <- ggplot(plot_data, aes(x = EffectSize, y = neg_log10_pval, text = hover_text)) +
       geom_point(aes(color = Mean_Effect), alpha = 0.7, size = 3) +
       geom_hline(yintercept = -log10(input$pvalue), linetype = "dashed", color = "red", alpha = 0.7) +
       geom_vline(xintercept = input$effect_size, linetype = "dashed", color = "blue", alpha = 0.7) +
-      scale_color_gradient2(low = "#2166ac", mid = "#f7f7f7", high = "#b2182b",
+      scale_color_gradient2(low = "#4400ff", mid = "#fafafa", high = "#ff2c02",
                             midpoint = median(plot_data$Mean_Effect, na.rm = TRUE),
                             name = "Mean Effect") +
       labs(
         title = "Volcano Plot",
         subtitle = paste("Cell Lineages:", paste(input$cellline, collapse = ", ")),
         x = "Effect Size",
-        y = "-Log10(P-value)"
+        y = "-Log10(q-value)"
       ) +
       theme_minimal(base_size = 14) +
       theme(
@@ -475,60 +613,362 @@ server <- function(input, output, session) {
         panel.grid.minor = element_blank(),
         axis.title = element_text(face = "bold", color = "#555"),
         legend.position = "right"
-      ) +
-      coord_flip()
+      )
+
+    # Convert to plotly with custom tooltip
+    ggplotly(p, tooltip = "text") %>%
+      layout(
+        hoverlabel = list(
+          bgcolor = "white",
+          font = list(size = 12, color = "black"),
+          bordercolor = "#667eea"
+        )
+      )
   })
 
   # Generate summary statistics
   output$summary_stats <- renderUI({
-    req(filtered_data())
+    req(filtered_data(), raw())
 
-    # ============================================
-    # PLACEHOLDER: Add your summary statistics here
-    # ============================================
-    # Calculate relevant statistics from your filtered data
+    # Calculate summary statistics
+    filtered <- filtered_data()
+    all_data <- raw()
+
+    # Total genes analyzed
+    total_genes <- nrow(all_data)
+    filtered_genes <- nrow(filtered)
+
+    # Effect size statistics for filtered genes
+    if (filtered_genes > 0) {
+      mean_effect_size <- mean(filtered$EffectSize, na.rm = TRUE)
+      median_effect_size <- median(filtered$EffectSize, na.rm = TRUE)
+      min_effect_size <- min(filtered$EffectSize, na.rm = TRUE)
+      max_effect_size <- max(filtered$EffectSize, na.rm = TRUE)
+
+      mean_mean_effect <- mean(filtered$Mean_Effect, na.rm = TRUE)
+      median_mean_effect <- median(filtered$Mean_Effect, na.rm = TRUE)
+
+      min_qvalue <- min(filtered$q.value, na.rm = TRUE)
+      max_qvalue <- max(filtered$q.value, na.rm = TRUE)
+
+      # Top 5 genes by effect size (most negative)
+      top_genes <- filtered %>%
+        arrange(EffectSize) %>%
+        head(5)
+
+      # Top 5 genes by mean effect score (most negative)
+      top_genes_mean_effect <- filtered %>%
+        arrange(Mean_Effect) %>%
+        head(5)
+    } else {
+      mean_effect_size <- median_effect_size <- min_effect_size <- max_effect_size <- NA
+      mean_mean_effect <- median_mean_effect <- NA
+      min_qvalue <- max_qvalue <- NA
+      top_genes <- NULL
+      top_genes_mean_effect <- NULL
+    }
+
+    # Count cell lines in selected lineages
+    total_cell_lines <- 0
+    if (!is.null(meta.data()) && !is.null(input$lineage_column) && input$lineage_column %in% colnames(meta.data())) {
+      total_cell_lines <- sum(meta.data()[[input$lineage_column]] %in% input$cellline)
+    }
 
     div(
+      # Row 1: Overview cards
       div(
         class = "row",
         div(
-          class = "col-md-6",
+          class = "col-md-4",
           div(
             style = "background: #f0f7ff; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
             h5(icon("dna"), " Selected Cell Lineages", style = "color: #667eea; margin-top: 0;"),
             p(strong(paste(input$cellline, collapse = ", ")), style = "font-size: 14px; margin: 0;"),
-            p(em(paste(length(input$cellline), "lineage(s) selected")),
+            p(em(paste(length(input$cellline), "lineage(s),", total_cell_lines, "cell line(s)")),
               style = "font-size: 12px; color: #6c757d; margin: 5px 0 0 0;")
           )
         ),
         div(
-          class = "col-md-6",
+          class = "col-md-4",
           div(
             style = "background: #f0fff4; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
-            h5(icon("list"), " Total Genes Passing Filters", style = "color: #48bb78; margin-top: 0;"),
-            p(strong(nrow(filtered_data())), style = "font-size: 16px; margin: 0;")
+            h5(icon("list"), " Genes Passing Filters", style = "color: #48bb78; margin-top: 0;"),
+            p(strong(filtered_genes), " of ", total_genes, " total genes",
+              style = "font-size: 16px; margin: 0;"),
+            p(em(paste0(round(100 * filtered_genes / total_genes, 2), "% of total")),
+              style = "font-size: 12px; color: #6c757d; margin: 5px 0 0 0;")
+          )
+        ),
+        div(
+          class = "col-md-4",
+          div(
+            style = "background: #fef3c7; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+            h5(icon("chart-bar"), " q-value Range", style = "color: #d97706; margin-top: 0;"),
+            if (filtered_genes > 0) {
+              tagList(
+                p(strong("Min: "), formatC(min_qvalue, format = "e", digits = 2),
+                  style = "font-size: 14px; margin: 0;"),
+                p(strong("Max: "), formatC(max_qvalue, format = "e", digits = 2),
+                  style = "font-size: 14px; margin: 5px 0 0 0;")
+              )
+            } else {
+              p("No data", style = "font-size: 14px; margin: 0; color: #6c757d;")
+            }
           )
         )
       ),
 
       hr(),
 
+      # Row 2: Effect statistics
+      div(
+        class = "row",
+        div(
+          class = "col-md-6",
+          div(
+            style = "background: #fdf2f8; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+            h5(icon("arrows-alt-h"), " Effect Size Statistics (Filtered)", style = "color: #be185d; margin-top: 0;"),
+            if (filtered_genes > 0) {
+              tags$table(
+                style = "width: 100%; font-size: 14px;",
+                tags$tr(tags$td(strong("Mean:")), tags$td(round(mean_effect_size, 4))),
+                tags$tr(tags$td(strong("Median:")), tags$td(round(median_effect_size, 4))),
+                tags$tr(tags$td(strong("Min:")), tags$td(round(min_effect_size, 4))),
+                tags$tr(tags$td(strong("Max:")), tags$td(round(max_effect_size, 4)))
+              )
+            } else {
+              p("No filtered genes to display", style = "margin: 0; color: #6c757d;")
+            }
+          )
+        ),
+        div(
+          class = "col-md-6",
+          div(
+            style = "background: #ecfdf5; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+            h5(icon("calculator"), " Mean Effect Statistics (Filtered)", style = "color: #059669; margin-top: 0;"),
+            if (filtered_genes > 0) {
+              tags$table(
+                style = "width: 100%; font-size: 14px;",
+                tags$tr(tags$td(strong("Mean:")), tags$td(round(mean_mean_effect, 4))),
+                tags$tr(tags$td(strong("Median:")), tags$td(round(median_mean_effect, 4)))
+              )
+            } else {
+              p("No filtered genes to display", style = "margin: 0; color: #6c757d;")
+            }
+          )
+        )
+      ),
+
+      hr(),
+
+      # Row 3: Top genes table
+      if (filtered_genes > 0 && !is.null(top_genes) && nrow(top_genes) > 0) {
+        div(
+          style = "background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+          h5(icon("trophy"), " Top 5 Genes by Effect Size", style = "color: #475569; margin-top: 0;"),
+          tags$table(
+            class = "table table-striped table-sm",
+            style = "font-size: 13px; margin-bottom: 0;",
+            tags$thead(
+              tags$tr(
+                tags$th("Gene"),
+                tags$th("Effect Size"),
+                tags$th("Mean Effect"),
+                tags$th("q-value")
+              )
+            ),
+            tags$tbody(
+              lapply(1:nrow(top_genes), function(i) {
+                tags$tr(
+                  tags$td(strong(top_genes$Gene[i])),
+                  tags$td(round(top_genes$EffectSize[i], 4)),
+                  tags$td(round(top_genes$Mean_Effect[i], 4)),
+                  tags$td(formatC(top_genes$q.value[i], format = "e", digits = 2))
+                )
+              })
+            )
+          )
+        )
+      },
+
+      # Row 4: Top genes table, effect score
+      if (filtered_genes > 0 && !is.null(top_genes_mean_effect) && nrow(top_genes_mean_effect) > 0) {
+        div(
+          style = "background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+          h5(icon("trophy"), " Top 5 Genes by Mean Effect Score", style = "color: #475569; margin-top: 0;"),
+          tags$table(
+            class = "table table-striped table-sm",
+            style = "font-size: 13px; margin-bottom: 0;",
+            tags$thead(
+              tags$tr(
+                tags$th("Gene"),
+                tags$th("Effect Size"),
+                tags$th("Mean Effect"),
+                tags$th("q-value")
+              )
+            ),
+            tags$tbody(
+              lapply(1:nrow(top_genes_mean_effect), function(i) {
+                tags$tr(
+                  tags$td(strong(top_genes_mean_effect$Gene[i])),
+                  tags$td(round(top_genes_mean_effect$EffectSize[i], 4)),
+                  tags$td(round(top_genes_mean_effect$Mean_Effect[i], 4)),
+                  tags$td(formatC(top_genes_mean_effect$q.value[i], format = "e", digits = 2))
+                )
+              })
+            )
+          )
+        )
+      },
+
+      hr(),
+
       h5("Filter Criteria Applied:", style = "margin-top: 20px;"),
       tags$ul(
         style = "line-height: 2;",
-        tags$li(strong("P-value threshold: "), input$pvalue),
+        tags$li(strong("q-value threshold: "), input$pvalue),
         tags$li(strong("Mean effect score cutoff: "), input$mean_effect),
         tags$li(strong("Effect size cutoff: "), input$effect_size)
-      ),
-
-      div(
-        style = "background: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin-top: 20px; border-radius: 4px;",
-        p(icon("info-circle"), strong(" Note: "),
-          "Additional summary statistics will appear here based on your analysis results.",
-          style = "margin: 0; color: #92400e;")
       )
     )
   })
+
+  # Render enrichment tables
+  output$enrichr_kegg <- renderDT({
+    req(enrichment_results())
+    enrich_data <- enrichment_results()
+
+    if (!is.null(enrich_data) && "KEGG_2026" %in% names(enrich_data)) {
+      df <- enrich_data$KEGG_2026 %>%
+        filter(Adjusted.P.value < 0.05) %>%
+        select(Term, Overlap, P.value, Adjusted.P.value, Genes) %>%
+        arrange(P.value)
+
+      datatable(
+        df,
+        options = list(
+          pageLength = 10,
+          scrollX = TRUE,
+          searchHighlight = TRUE,
+          ordering = TRUE
+        ),
+        class = 'cell-border stripe hover',
+        rownames = FALSE,
+        filter = 'top'
+      ) %>%
+        formatSignif(columns = c('P.value', 'Adjusted.P.value'), digits = 3)
+    } else {
+      datatable(data.frame(Message = "No enrichment results available"))
+    }
+  })
+
+  output$enrichr_wiki <- renderDT({
+    req(enrichment_results())
+    enrich_data <- enrichment_results()
+
+    if (!is.null(enrich_data) && "WikiPathways_2024" %in% names(enrich_data)) {
+      df <- enrich_data$WikiPathways_2024 %>%
+        filter(Adjusted.P.value < 0.05) %>%
+        select(Term, Overlap, P.value, Adjusted.P.value, Genes) %>%
+        arrange(P.value)
+
+      datatable(
+        df,
+        options = list(
+          pageLength = 10,
+          scrollX = TRUE,
+          searchHighlight = TRUE,
+          ordering = TRUE
+        ),
+        class = 'cell-border stripe hover',
+        rownames = FALSE,
+        filter = 'top'
+      ) %>%
+        formatSignif(columns = c('P.value', 'Adjusted.P.value'), digits = 3)
+    } else {
+      datatable(data.frame(Message = "No enrichment results available"))
+    }
+  })
+
+  output$enrichr_reactome <- renderDT({
+    req(enrichment_results())
+    enrich_data <- enrichment_results()
+
+    if (!is.null(enrich_data) && "Reactome_2024" %in% names(enrich_data)) {
+      df <- enrich_data$Reactome_2024 %>%
+        filter(Adjusted.P.value < 0.05) %>%
+        select(Term, Overlap, P.value, Adjusted.P.value, Genes) %>%
+        arrange(P.value)
+
+      datatable(
+        df,
+        options = list(
+          pageLength = 10,
+          scrollX = TRUE,
+          searchHighlight = TRUE,
+          ordering = TRUE
+        ),
+        class = 'cell-border stripe hover',
+        rownames = FALSE,
+        filter = 'top'
+      ) %>%
+        formatSignif(columns = c('P.value', 'Adjusted.P.value'), digits = 3)
+    } else {
+      datatable(data.frame(Message = "No enrichment results available"))
+    }
+  })
+
+  output$enrichr_msigdb <- renderDT({
+    req(enrichment_results())
+    enrich_data <- enrichment_results()
+
+    if (!is.null(enrich_data) && "MSigDB_Hallmark_2020" %in% names(enrich_data)) {
+      df <- enrich_data$MSigDB_Hallmark_2020 %>%
+        filter(Adjusted.P.value < 0.05) %>%
+        select(Term, Overlap, P.value, Adjusted.P.value, Genes) %>%
+        arrange(P.value)
+
+      datatable(
+        df,
+        options = list(
+          pageLength = 10,
+          scrollX = TRUE,
+          searchHighlight = TRUE,
+          ordering = TRUE
+        ),
+        class = 'cell-border stripe hover',
+        rownames = FALSE,
+        filter = 'top'
+      ) %>%
+        formatSignif(columns = c('P.value', 'Adjusted.P.value'), digits = 3)
+    } else {
+      datatable(data.frame(Message = "No enrichment results available"))
+    }
+  })
+
+  # Download enrichment results
+  output$download_enrichment <- downloadHandler(
+    filename = function() {
+      paste0("enrichment_results_", paste(input$cellline, collapse = "_"), "_", Sys.Date(), ".xlsx")
+    },
+    content = function(file) {
+      req(enrichment_results())
+
+      # Create a workbook and add each enrichment database as a sheet
+      library(openxlsx)
+      wb <- createWorkbook()
+
+      enrich_data <- enrichment_results()
+      if (!is.null(enrich_data)) {
+        for (db_name in names(enrich_data)) {
+          addWorksheet(wb, db_name)
+          writeData(wb, db_name, enrich_data[[db_name]])
+        }
+      }
+
+      saveWorkbook(wb, file, overwrite = TRUE)
+    }
+  )
 
   # Download filtered table
   output$download_table <- downloadHandler(
@@ -547,15 +987,45 @@ server <- function(input, output, session) {
       paste0("volcano_plot_", paste(input$cellline, collapse = "_"), "_", Sys.Date(), ".png")
     },
     content = function(file) {
-      req(filtered_data())
+      req(filtered_data(), raw())
 
-      # ============================================
-      # PLACEHOLDER: Save your actual volcano plot here
-      # ============================================
+      # Recreate the volcano plot for saving
+      plot_data <- raw() %>%
+        mutate(neg_log10_pval = -log10(q.value))
+
+      # Identify filtered/highlighted points
+      filtered_genes <- filtered_data()$Gene
+
+      p <- ggplot(plot_data, aes(x = EffectSize, y = neg_log10_pval)) +
+        geom_point(aes(color = Mean_Effect), alpha = 0.7, size = 3) +
+        geom_hline(yintercept = -log10(input$pvalue), linetype = "dashed", color = "red", alpha = 0.7) +
+        geom_vline(xintercept = input$effect_size, linetype = "dashed", color = "blue", alpha = 0.7) +
+        geom_label(data = plot_data %>% filter(Gene %in% filtered_genes),
+                   aes(label = Gene),
+                   size = 3, color = "black", fill = "white",
+                   alpha = 0.8, linewidth = 0.2, position = "nudge") +
+        scale_color_gradient2(low = "#1974d0", mid = "#f7f7f78e", high = "#e30a23",
+                              midpoint = median(plot_data$Mean_Effect, na.rm = TRUE),
+                              name = "Mean Effect") +
+        labs(
+          title = "Volcano Plot",
+          subtitle = paste("Cell Lineages:", paste(input$cellline, collapse = ", ")),
+          x = "Effect Size",
+          y = "-Log10(q-value)"
+        ) +
+        theme_minimal(base_size = 14) +
+        theme(
+          plot.title = element_text(face = "bold", size = 18, color = "#333"),
+          plot.subtitle = element_text(color = "#666", margin = margin(b = 15)),
+          panel.grid.major = element_line(color = "#e0e0e0"),
+          panel.grid.minor = element_blank(),
+          axis.title = element_text(face = "bold", color = "#555"),
+          legend.position = "right"
+        )
 
       ggsave(
         file,
-        plot = last_plot(),
+        plot = p,
         width = 12,
         height = 8,
         dpi = 300,
