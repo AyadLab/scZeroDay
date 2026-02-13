@@ -526,11 +526,11 @@ server <- function(input, output, session) {
           gene_list <- results$Gene
 
           # Run enrichR on multiple databases
-          dbs <- c("KEGG_2026", "WikiPathway_2024_Human", "Reactome_Pathways_2024", "MSigDB_Hallmark_2020") ### Update database names to match enrichR's current offerings
+          dbs <- c("KEGG_2026", "WikiPathways_2024_Human", "Reactome_Pathways_2024", "MSigDB_Hallmark_2020") ### Update database names to match enrichR's current offerings
           enrichment_data <- enrichr(gene_list, dbs)
 
           # Rename the list elements for clearer display
-          names(enrichment_data) <- c("KEGG_2026", "WikiPathway_2024", "Reactome_2024", "MSigDB_Hallmark_2020")
+          names(enrichment_data) <- c("KEGG_2026", "WikiPathways_2024", "Reactome_2024", "MSigDB_Hallmark_2020")
 
         }, error = function(e) {
           showNotification(
@@ -866,8 +866,8 @@ server <- function(input, output, session) {
     req(enrichment_results())
     enrich_data <- enrichment_results()
 
-    if (!is.null(enrich_data) && "WikiPathway_2024" %in% names(enrich_data)) {
-      df <- enrich_data$WikiPathway_2024 %>%
+    if (!is.null(enrich_data) && "WikiPathways_2024" %in% names(enrich_data)) {
+      df <- enrich_data$WikiPathways_2024 %>%
         filter(Adjusted.P.value < 0.05) %>%
         select(Term, Overlap, P.value, Adjusted.P.value, Genes) %>%
         arrange(P.value)
