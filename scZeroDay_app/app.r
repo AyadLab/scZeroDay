@@ -7,6 +7,8 @@ library(DT)
 library(plotly)
 library(enrichR)
 library(openxlsx)
+library(httr)
+library(jsonlite)
 
 # UI Definition
 ui <- fluidPage(
@@ -240,6 +242,137 @@ ui <- fluidPage(
             )
           ),
 
+          # ChEA3 Transcription Factor Analysis Tab
+          tabPanel(
+            title = div(icon("dna"), " ChEA3 TF Analysis"),
+            value = "chea3_tab",
+            br(),
+
+            div(
+              style = "background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);",
+
+              div(
+                style = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;",
+                h4("ChEA3 Transcription Factor Enrichment Analysis", style = "margin: 0; color: #333;"),
+                downloadButton("download_chea3",
+                               label = "Download Results",
+                               class = "btn-success",
+                               style = "border: none;")
+              ),
+
+              hr(style = "margin-top: 10px; margin-bottom: 20px;"),
+
+              p("Identify transcription factors that may regulate your gene set using ",
+                tags$a(href = "https://maayanlab.cloud/chea3/", target = "_blank", "ChEA3"),
+                " (ChIP-X Enrichment Analysis 3).",
+                style = "color: #666; margin-bottom: 20px;"),
+
+              # Gene source selection
+              div(
+                style = "background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 20px;",
+
+                h5("Select Gene Source", style = "margin-top: 0; color: #667eea;"),
+
+                tags$style("#chea3_gene_source .radio-inline { margin-right: 25px; }"),
+                radioButtons("chea3_gene_source",
+                             label = NULL,
+                             choices = c("Filtered Gene Set" = "filtered",
+                                         "EnrichR Pathway Genes" = "enrichr"),
+                             selected = "filtered",
+                             inline = TRUE),
+
+                # Conditional panel for EnrichR pathway selection
+                conditionalPanel(
+                  condition = "input.chea3_gene_source == 'enrichr'",
+
+                  div(
+                    style = "margin-top: 15px;",
+
+                    selectInput("chea3_enrichr_db",
+                                label = "Select Pathway Database:",
+                                choices = c("KEGG" = "KEGG_2026",
+                                            "WikiPathway" = "WikiPathways_2024",
+                                            "Reactome" = "Reactome_2024",
+                                            "MSigDB Hallmark" = "MSigDB_Hallmark_2020"),
+                                selected = "KEGG_2026"),
+
+                    selectInput("chea3_pathway",
+                                label = "Select Pathway:",
+                                choices = NULL,
+                                selected = NULL)
+                  )
+                ),
+
+                # Display selected genes info
+                div(
+                  style = "margin-top: 15px;",
+                  uiOutput("chea3_gene_info")
+                ),
+
+                # Run ChEA3 button
+                div(
+                  style = "margin-top: 15px;",
+                  actionButton("run_chea3",
+                               label = div(icon("search"), " Run ChEA3 Analysis"),
+                               class = "btn-primary",
+                               style = "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;")
+                )
+              ),
+
+              # Results section
+              div(
+                style = "margin-top: 20px;",
+
+                tabsetPanel(
+                  id = "chea3_results_tabs",
+                  type = "tabs",
+
+                  tabPanel(
+                    title = "Integrated Results (Mean Rank)",
+                    br(),
+                    DTOutput("chea3_integrated")
+                  ),
+
+                  tabPanel(
+                    title = "ENCODE",
+                    br(),
+                    DTOutput("chea3_encode")
+                  ),
+
+                  tabPanel(
+                    title = "ReMap",
+                    br(),
+                    DTOutput("chea3_remap")
+                  ),
+
+                  tabPanel(
+                    title = "ARCHS4",
+                    br(),
+                    DTOutput("chea3_archs4")
+                  ),
+
+                  tabPanel(
+                    title = "GTEx",
+                    br(),
+                    DTOutput("chea3_gtex")
+                  ),
+
+                  tabPanel(
+                    title = "Literature",
+                    br(),
+                    DTOutput("chea3_literature")
+                  ),
+
+                  tabPanel(
+                    title = "Enrichr",
+                    br(),
+                    DTOutput("chea3_enrichr")
+                  )
+                )
+              )
+            )
+          ),
+
           # Summary Tab
           tabPanel(
             title = div(icon("info-circle"), " Summary"),
@@ -281,6 +414,9 @@ server <- function(input, output, session) {
 
   # Reactive value to store enrichment results
   enrichment_results <- reactiveVal(NULL)
+
+  # Reactive value to store ChEA3 results
+  chea3_results <- reactiveVal(NULL)
 
   # Load and process uploaded file, effect scores
   observeEvent(input$efx_file, {
@@ -626,213 +762,6 @@ server <- function(input, output, session) {
       )
   })
 
-  # Generate summary statistics
-  output$summary_stats <- renderUI({
-    req(filtered_data(), raw())
-
-    # Calculate summary statistics
-    filtered <- filtered_data()
-    all_data <- raw()
-
-    # Total genes analyzed
-    total_genes <- nrow(all_data)
-    filtered_genes <- nrow(filtered)
-
-    # Effect size statistics for filtered genes
-    if (filtered_genes > 0) {
-      mean_effect_size <- mean(filtered$EffectSize, na.rm = TRUE)
-      median_effect_size <- median(filtered$EffectSize, na.rm = TRUE)
-      min_effect_size <- min(filtered$EffectSize, na.rm = TRUE)
-      max_effect_size <- max(filtered$EffectSize, na.rm = TRUE)
-
-      mean_mean_effect <- mean(filtered$Mean_Effect, na.rm = TRUE)
-      median_mean_effect <- median(filtered$Mean_Effect, na.rm = TRUE)
-
-      min_qvalue <- min(filtered$q.value, na.rm = TRUE)
-      max_qvalue <- max(filtered$q.value, na.rm = TRUE)
-
-      # Top 5 genes by effect size (most negative)
-      top_genes <- filtered %>%
-        arrange(EffectSize) %>%
-        head(5)
-
-      # Top 5 genes by mean effect score (most negative)
-      top_genes_mean_effect <- filtered %>%
-        arrange(Mean_Effect) %>%
-        head(5)
-    } else {
-      mean_effect_size <- median_effect_size <- min_effect_size <- max_effect_size <- NA
-      mean_mean_effect <- median_mean_effect <- NA
-      min_qvalue <- max_qvalue <- NA
-      top_genes <- NULL
-      top_genes_mean_effect <- NULL
-    }
-
-    # Count cell lines in selected lineages
-    total_cell_lines <- 0
-    if (!is.null(meta.data()) && !is.null(input$lineage_column) && input$lineage_column %in% colnames(meta.data())) {
-      total_cell_lines <- sum(meta.data()[[input$lineage_column]] %in% input$cellline)
-    }
-
-    div(
-      # Row 1: Overview cards
-      div(
-        class = "row",
-        div(
-          class = "col-md-4",
-          div(
-            style = "background: #f0f7ff; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
-            h5(icon("dna"), " Selected Cell Lineages", style = "color: #667eea; margin-top: 0;"),
-            p(strong(paste(input$cellline, collapse = ", ")), style = "font-size: 14px; margin: 0;"),
-            p(em(paste(length(input$cellline), "lineage(s),", total_cell_lines, "cell line(s)")),
-              style = "font-size: 12px; color: #6c757d; margin: 5px 0 0 0;")
-          )
-        ),
-        div(
-          class = "col-md-4",
-          div(
-            style = "background: #f0fff4; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
-            h5(icon("list"), " Genes Passing Filters", style = "color: #48bb78; margin-top: 0;"),
-            p(strong(filtered_genes), " of ", total_genes, " total genes",
-              style = "font-size: 16px; margin: 0;"),
-            p(em(paste0(round(100 * filtered_genes / total_genes, 2), "% of total")),
-              style = "font-size: 12px; color: #6c757d; margin: 5px 0 0 0;")
-          )
-        ),
-        div(
-          class = "col-md-4",
-          div(
-            style = "background: #fef3c7; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
-            h5(icon("chart-bar"), " q-value Range", style = "color: #d97706; margin-top: 0;"),
-            if (filtered_genes > 0) {
-              tagList(
-                p(strong("Min: "), formatC(min_qvalue, format = "e", digits = 2),
-                  style = "font-size: 14px; margin: 0;"),
-                p(strong("Max: "), formatC(max_qvalue, format = "e", digits = 2),
-                  style = "font-size: 14px; margin: 5px 0 0 0;")
-              )
-            } else {
-              p("No data", style = "font-size: 14px; margin: 0; color: #6c757d;")
-            }
-          )
-        )
-      ),
-
-      hr(),
-
-      # Row 2: Effect statistics
-      div(
-        class = "row",
-        div(
-          class = "col-md-6",
-          div(
-            style = "background: #fdf2f8; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
-            h5(icon("arrows-alt-h"), " Effect Size Statistics (Filtered)", style = "color: #be185d; margin-top: 0;"),
-            if (filtered_genes > 0) {
-              tags$table(
-                style = "width: 100%; font-size: 14px;",
-                tags$tr(tags$td(strong("Mean:")), tags$td(round(mean_effect_size, 4))),
-                tags$tr(tags$td(strong("Median:")), tags$td(round(median_effect_size, 4))),
-                tags$tr(tags$td(strong("Min:")), tags$td(round(min_effect_size, 4))),
-                tags$tr(tags$td(strong("Max:")), tags$td(round(max_effect_size, 4)))
-              )
-            } else {
-              p("No filtered genes to display", style = "margin: 0; color: #6c757d;")
-            }
-          )
-        ),
-        div(
-          class = "col-md-6",
-          div(
-            style = "background: #ecfdf5; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
-            h5(icon("calculator"), " Mean Effect Statistics (Filtered)", style = "color: #059669; margin-top: 0;"),
-            if (filtered_genes > 0) {
-              tags$table(
-                style = "width: 100%; font-size: 14px;",
-                tags$tr(tags$td(strong("Mean:")), tags$td(round(mean_mean_effect, 4))),
-                tags$tr(tags$td(strong("Median:")), tags$td(round(median_mean_effect, 4)))
-              )
-            } else {
-              p("No filtered genes to display", style = "margin: 0; color: #6c757d;")
-            }
-          )
-        )
-      ),
-
-      hr(),
-
-      # Row 3: Top genes table
-      if (filtered_genes > 0 && !is.null(top_genes) && nrow(top_genes) > 0) {
-        div(
-          style = "background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
-          h5(icon("trophy"), " Top 5 Genes by Effect Size", style = "color: #475569; margin-top: 0;"),
-          tags$table(
-            class = "table table-striped table-sm",
-            style = "font-size: 13px; margin-bottom: 0;",
-            tags$thead(
-              tags$tr(
-                tags$th("Gene"),
-                tags$th("Effect Size"),
-                tags$th("Mean Effect"),
-                tags$th("q-value")
-              )
-            ),
-            tags$tbody(
-              lapply(1:nrow(top_genes), function(i) {
-                tags$tr(
-                  tags$td(strong(top_genes$Gene[i])),
-                  tags$td(round(top_genes$EffectSize[i], 4)),
-                  tags$td(round(top_genes$Mean_Effect[i], 4)),
-                  tags$td(formatC(top_genes$q.value[i], format = "e", digits = 2))
-                )
-              })
-            )
-          )
-        )
-      },
-
-      # Row 4: Top genes table, effect score
-      if (filtered_genes > 0 && !is.null(top_genes_mean_effect) && nrow(top_genes_mean_effect) > 0) {
-        div(
-          style = "background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
-          h5(icon("trophy"), " Top 5 Genes by Mean Effect Score", style = "color: #475569; margin-top: 0;"),
-          tags$table(
-            class = "table table-striped table-sm",
-            style = "font-size: 13px; margin-bottom: 0;",
-            tags$thead(
-              tags$tr(
-                tags$th("Gene"),
-                tags$th("Effect Size"),
-                tags$th("Mean Effect"),
-                tags$th("q-value")
-              )
-            ),
-            tags$tbody(
-              lapply(1:nrow(top_genes_mean_effect), function(i) {
-                tags$tr(
-                  tags$td(strong(top_genes_mean_effect$Gene[i])),
-                  tags$td(round(top_genes_mean_effect$EffectSize[i], 4)),
-                  tags$td(round(top_genes_mean_effect$Mean_Effect[i], 4)),
-                  tags$td(formatC(top_genes_mean_effect$q.value[i], format = "e", digits = 2))
-                )
-              })
-            )
-          )
-        )
-      },
-
-      hr(),
-
-      h5("Filter Criteria Applied:", style = "margin-top: 20px;"),
-      tags$ul(
-        style = "line-height: 2;",
-        tags$li(strong("q-value threshold: "), input$pvalue),
-        tags$li(strong("Mean effect score cutoff: "), input$mean_effect),
-        tags$li(strong("Effect size cutoff: "), input$effect_size)
-      )
-    )
-  })
-
   # Render enrichment tables
   output$enrichr_kegg <- renderDT({
     req(enrichment_results())
@@ -945,6 +874,725 @@ server <- function(input, output, session) {
       datatable(data.frame(Message = "No enrichment results available"))
     }
   })
+
+  # ChEA3 Tab Logic
+
+  # Update pathway choices when database is selected
+  observeEvent(list(input$chea3_enrichr_db, enrichment_results()), {
+    req(enrichment_results(), input$chea3_enrichr_db)
+
+    enrich_data <- enrichment_results()
+    db_name <- input$chea3_enrichr_db
+
+    if (!is.null(enrich_data) && db_name %in% names(enrich_data)) {
+      # Get significant pathways (Adjusted.P.value < 0.05)
+      pathways <- enrich_data[[db_name]] %>%
+        filter(Adjusted.P.value < 0.05) %>%
+        arrange(P.value) %>%
+        pull(Term)
+
+      if (length(pathways) > 0) {
+        updateSelectInput(session, "chea3_pathway",
+                          choices = pathways,
+                          selected = pathways[1])
+      } else {
+        updateSelectInput(session, "chea3_pathway",
+                          choices = c("No significant pathways found" = ""),
+                          selected = "")
+      }
+    } else {
+      updateSelectInput(session, "chea3_pathway",
+                        choices = c("Run analysis first" = ""),
+                        selected = "")
+    }
+  })
+
+  # Reactive to get genes for ChEA3 based on source selection
+  chea3_genes <- reactive({
+    if (input$chea3_gene_source == "filtered") {
+      req(filtered_data())
+      return(filtered_data()$Gene)
+    } else {
+      req(enrichment_results(), input$chea3_enrichr_db, input$chea3_pathway)
+
+      enrich_data <- enrichment_results()
+      db_name <- input$chea3_enrichr_db
+
+      if (!is.null(enrich_data) && db_name %in% names(enrich_data) && input$chea3_pathway != "") {
+        # Get genes from the selected pathway
+        pathway_row <- enrich_data[[db_name]] %>%
+          filter(Term == input$chea3_pathway)
+
+        if (nrow(pathway_row) > 0) {
+          genes <- pathway_row$Genes[1]
+          # Split by semicolon and clean up
+          gene_list <- unlist(strsplit(genes, ";"))
+          gene_list <- trimws(gene_list)
+          return(gene_list[gene_list != ""])
+        }
+      }
+      return(NULL)
+    }
+  })
+
+  # Render gene info display
+  output$chea3_gene_info <- renderUI({
+    genes <- chea3_genes()
+
+    if (is.null(genes) || length(genes) == 0) {
+      div(
+        style = "background: #fef3c7; padding: 10px; border-radius: 6px;",
+        p(style = "margin: 0; color: #d97706;",
+          icon("exclamation-triangle"), " No genes available. Run the main analysis first or select a valid pathway.")
+      )
+    } else {
+      div(
+        style = "background: #e0e7ff; padding: 10px; border-radius: 6px;",
+        p(style = "margin: 0; color: #4c1d95; font-weight: 600;",
+          icon("check-circle"),
+          sprintf(" %d genes ready for ChEA3 analysis", length(genes))),
+        if (length(genes) <= 10) {
+          p(style = "margin: 5px 0 0 0; color: #5b21b6; font-size: 12px;",
+            paste(genes, collapse = ", "))
+        } else {
+          p(style = "margin: 5px 0 0 0; color: #5b21b6; font-size: 12px;",
+            paste(c(head(genes, 10), "..."), collapse = ", "))
+        }
+      )
+    }
+  })
+
+  # Run ChEA3 analysis
+  observeEvent(input$run_chea3, {
+    genes <- chea3_genes()
+
+    if (is.null(genes) || length(genes) == 0) {
+      showNotification("No genes available for ChEA3 analysis", type = "error", duration = 3)
+      return()
+    }
+
+    if (length(genes) < 3) {
+      showNotification("ChEA3 requires at least 3 genes", type = "error", duration = 3)
+      return()
+    }
+
+    withProgress(message = 'Running ChEA3 analysis...', value = 0, {
+      tryCatch({
+        # Prepare the request body
+        body <- list(
+          query_name = "shiny_query",
+          gene_set = genes
+        )
+
+        incProgress(0.3, detail = "Sending request to ChEA3...")
+
+        # Make the API call
+        response <- POST(
+          url = "https://maayanlab.cloud/chea3/api/enrich/",
+          body = toJSON(body, auto_unbox = TRUE),
+          content_type_json(),
+          encode = "raw"
+        )
+
+        incProgress(0.6, detail = "Processing results...")
+
+        if (http_status(response)$category == "Success") {
+          # Parse the response
+          results <- content(response, as = "text", encoding = "UTF-8")
+          results_list <- fromJSON(results)
+
+          # Store results
+          chea3_results(results_list)
+
+          incProgress(1, detail = "Complete")
+          showNotification("ChEA3 analysis complete!", type = "message", duration = 3)
+        } else {
+          showNotification(
+            paste("ChEA3 API error:", http_status(response)$message),
+            type = "error",
+            duration = 5
+          )
+        }
+      }, error = function(e) {
+        showNotification(
+          paste("Error running ChEA3:", e$message),
+          type = "error",
+          duration = 5
+        )
+      })
+    })
+  })
+
+  # Helper function to render ChEA3 result tables
+  render_chea3_table <- function(library_name) {
+    req(chea3_results())
+
+    results <- chea3_results()
+
+    # Find the library in results
+    lib_data <- NULL
+    for (item in results) {
+      if (is.data.frame(item) || is.list(item)) {
+        if ("Library" %in% names(item) || length(item) > 0) {
+          # Check if this is the right library
+          if (is.data.frame(item) && nrow(item) > 0) {
+            if ("Library" %in% names(item) && any(item$Library == library_name)) {
+              lib_data <- item %>% filter(Library == library_name)
+              break
+            }
+          }
+        }
+      }
+    }
+
+    # If not found by Library column, try to find by list name
+    if (is.null(lib_data) && library_name %in% names(results)) {
+      lib_data <- results[[library_name]]
+    }
+
+    # Handle integrated results (Mean Rank)
+    if (library_name == "Integrated--meanRank" || library_name == "integrated") {
+      for (item in results) {
+        if (is.data.frame(item) && "Rank" %in% names(item) && "Score" %in% names(item)) {
+          lib_data <- item
+          break
+        }
+      }
+    }
+
+    if (!is.null(lib_data) && is.data.frame(lib_data) && nrow(lib_data) > 0) {
+      # Select relevant columns if they exist
+      cols_to_show <- intersect(names(lib_data), c("Rank", "TF", "Score", "Library", "Overlapping_Genes", "FET p-value", "FDR", "Odds Ratio", "Set_name"))
+      if (length(cols_to_show) > 0) {
+        lib_data <- lib_data[, cols_to_show, drop = FALSE]
+        lib_data$Rank <- as.numeric(lib_data$Rank)
+
+      }
+
+      datatable(
+        lib_data,
+        options = list(
+          pageLength = 15,
+          scrollX = TRUE,
+          searchHighlight = TRUE,
+          ordering = TRUE
+        ),
+        class = 'cell-border stripe hover',
+        rownames = FALSE,
+        filter = 'top'
+      )
+    } else {
+      datatable(data.frame(Message = "No results available for this library"))
+    }
+  }
+
+  # Render ChEA3 integrated results
+  output$chea3_integrated <- renderDT({
+    req(chea3_results())
+
+    results <- chea3_results()
+
+    # The integrated results are typically the first element with meanRank
+    integrated_data <- NULL
+    for (item in results) {
+      if (is.data.frame(item) && "Rank" %in% names(item) && "Score" %in% names(item)) {
+        integrated_data <- item
+        break
+      }
+    }
+    # Select relevant columns if they exist
+    cols_to_show <- intersect(names(integrated_data), c("Rank", "TF", "Score", "Library", "Overlapping_Genes", "FET p-value", "FDR", "Odds Ratio", "Set_name"))
+    if (length(cols_to_show) > 0) {
+      integrated_data <- integrated_data[, cols_to_show, drop = FALSE]
+      integrated_data$Rank <- as.numeric(integrated_data$Rank)
+    }
+
+    if (!is.null(integrated_data) && nrow(integrated_data) > 0) {
+      datatable(
+        integrated_data,
+        options = list(
+          pageLength = 15,
+          scrollX = TRUE,
+          searchHighlight = TRUE,
+          ordering = TRUE
+        ),
+        class = 'cell-border stripe hover',
+        rownames = FALSE,
+        filter = 'top'
+      )
+    } else {
+      datatable(data.frame(Message = "No integrated results available"))
+    }
+  })
+
+  # Render individual library results
+  output$chea3_encode <- renderDT({
+    req(chea3_results())
+    results <- chea3_results()
+
+    lib_data <- NULL
+    for (item in results) {
+      if (is.data.frame(item) && "Library" %in% names(item)) {
+        encode_data <- item %>% filter(grepl("ENCODE", Library, ignore.case = TRUE))
+        if (nrow(encode_data) > 0) {
+          lib_data <- encode_data
+          break
+        }
+      }
+    }
+
+    # Select relevant columns if they exist
+    cols_to_show <- intersect(names(lib_data), c("Rank", "TF", "Score", "Library", "Overlapping_Genes", "FET p-value", "FDR", "Odds Ratio", "Set_name"))
+    if (length(cols_to_show) > 0) {
+      lib_data <- lib_data[, cols_to_show, drop = FALSE]
+      lib_data$Rank <- as.numeric(lib_data$Rank)
+    }
+
+    if (!is.null(lib_data) && nrow(lib_data) > 0) {
+      datatable(lib_data, options = list(pageLength = 15, scrollX = TRUE), class = 'cell-border stripe hover', rownames = FALSE, filter = 'top')
+    } else {
+      datatable(data.frame(Message = "No ENCODE results available"))
+    }
+  })
+
+  output$chea3_remap <- renderDT({
+    req(chea3_results())
+    results <- chea3_results()
+
+    lib_data <- NULL
+    for (item in results) {
+      if (is.data.frame(item) && "Library" %in% names(item)) {
+        remap_data <- item %>% filter(grepl("ReMap", Library, ignore.case = TRUE))
+        if (nrow(remap_data) > 0) {
+          lib_data <- remap_data
+          break
+        }
+      }
+    }
+
+    # Select relevant columns if they exist
+    cols_to_show <- intersect(names(lib_data), c("Rank", "TF", "Score", "Library", "Overlapping_Genes", "FET p-value", "FDR", "Odds Ratio", "Set_name"))
+    if (length(cols_to_show) > 0) {
+      lib_data <- lib_data[, cols_to_show, drop = FALSE]
+      lib_data$Rank <- as.numeric(lib_data$Rank)
+    }
+
+    if (!is.null(lib_data) && nrow(lib_data) > 0) {
+      datatable(lib_data, options = list(pageLength = 15, scrollX = TRUE), class = 'cell-border stripe hover', rownames = FALSE, filter = 'top')
+    } else {
+      datatable(data.frame(Message = "No ReMap results available"))
+    }
+  })
+
+  output$chea3_archs4 <- renderDT({
+    req(chea3_results())
+    results <- chea3_results()
+
+    lib_data <- NULL
+    for (item in results) {
+      if (is.data.frame(item) && "Library" %in% names(item)) {
+        archs4_data <- item %>% filter(grepl("ARCHS4", Library, ignore.case = TRUE))
+        if (nrow(archs4_data) > 0) {
+          lib_data <- archs4_data
+          break
+        }
+      }
+    }
+
+    # Select relevant columns if they exist
+    cols_to_show <- intersect(names(lib_data), c("Rank", "TF", "Score", "Library", "Overlapping_Genes", "FET p-value", "FDR", "Odds Ratio", "Set_name"))
+    if (length(cols_to_show) > 0) {
+      lib_data <- lib_data[, cols_to_show, drop = FALSE]
+      lib_data$Rank <- as.numeric(lib_data$Rank)
+    }
+
+    if (!is.null(lib_data) && nrow(lib_data) > 0) {
+      datatable(lib_data, options = list(pageLength = 15, scrollX = TRUE), class = 'cell-border stripe hover', rownames = FALSE, filter = 'top')
+    } else {
+      datatable(data.frame(Message = "No ARCHS4 results available"))
+    }
+  })
+
+  output$chea3_gtex <- renderDT({
+    req(chea3_results())
+    results <- chea3_results()
+
+    lib_data <- NULL
+    for (item in results) {
+      if (is.data.frame(item) && "Library" %in% names(item)) {
+        gtex_data <- item %>% filter(grepl("GTEx", Library, ignore.case = TRUE))
+        if (nrow(gtex_data) > 0) {
+          lib_data <- gtex_data
+          break
+        }
+      }
+    }
+
+    # Select relevant columns if they exist
+    cols_to_show <- intersect(names(lib_data), c("Rank", "TF", "Score", "Library", "Overlapping_Genes", "FET p-value", "FDR", "Odds Ratio", "Set_name"))
+    if (length(cols_to_show) > 0) {
+      lib_data <- lib_data[, cols_to_show, drop = FALSE]
+      lib_data$Rank <- as.numeric(lib_data$Rank)
+    }
+
+    if (!is.null(lib_data) && nrow(lib_data) > 0) {
+      datatable(lib_data, options = list(pageLength = 15, scrollX = TRUE), class = 'cell-border stripe hover', rownames = FALSE, filter = 'top')
+    } else {
+      datatable(data.frame(Message = "No GTEx results available"))
+    }
+  })
+
+  output$chea3_literature <- renderDT({
+    req(chea3_results())
+    results <- chea3_results()
+
+    lib_data <- NULL
+    for (item in results) {
+      if (is.data.frame(item) && "Library" %in% names(item)) {
+        lit_data <- item %>% filter(grepl("Literature", Library, ignore.case = TRUE))
+        if (nrow(lit_data) > 0) {
+          lib_data <- lit_data
+          break
+        }
+      }
+    }
+
+    # Select relevant columns if they exist
+    cols_to_show <- intersect(names(lib_data), c("Rank", "TF", "Score", "Library", "Overlapping_Genes", "FET p-value", "FDR", "Odds Ratio", "Set_name"))
+    if (length(cols_to_show) > 0) {
+      lib_data <- lib_data[, cols_to_show, drop = FALSE]
+      lib_data$Rank <- as.numeric(lib_data$Rank)
+    }
+
+    if (!is.null(lib_data) && nrow(lib_data) > 0) {
+      datatable(lib_data, options = list(pageLength = 15, scrollX = TRUE), class = 'cell-border stripe hover', rownames = FALSE, filter = 'top')
+    } else {
+      datatable(data.frame(Message = "No Literature results available"))
+    }
+  })
+
+  output$chea3_enrichr <- renderDT({
+    req(chea3_results())
+    results <- chea3_results()
+
+    lib_data <- NULL
+    for (item in results) {
+      if (is.data.frame(item) && "Library" %in% names(item)) {
+        enrichr_data <- item %>% filter(grepl("Enrichr", Library, ignore.case = TRUE))
+        if (nrow(enrichr_data) > 0) {
+          lib_data <- enrichr_data
+          break
+        }
+      }
+    }
+
+    # Select relevant columns if they exist
+    cols_to_show <- intersect(names(lib_data), c("Rank", "TF", "Score", "Library", "Overlapping_Genes", "FET p-value", "FDR", "Odds Ratio", "Set_name"))
+    if (length(cols_to_show) > 0) {
+      lib_data <- lib_data[, cols_to_show, drop = FALSE]
+      lib_data$Rank <- as.numeric(lib_data$Rank)
+    }
+
+    if (!is.null(lib_data) && nrow(lib_data) > 0) {
+      datatable(lib_data, options = list(pageLength = 15, scrollX = TRUE), class = 'cell-border stripe hover', rownames = FALSE, filter = 'top')
+    } else {
+      datatable(data.frame(Message = "No Enrichr results available"))
+    }
+  })
+
+  # Generate summary statistics
+  output$summary_stats <- renderUI({
+    req(filtered_data(), raw())
+
+    # Calculate summary statistics
+    filtered <- filtered_data()
+    all_data <- raw()
+    chea3_data <- chea3_results()
+
+    # Total genes analyzed
+    total_genes <- nrow(all_data)
+    filtered_genes <- nrow(filtered)
+
+    # Effect size statistics for filtered genes
+    if (filtered_genes > 0) {
+      mean_effect_size <- mean(filtered$EffectSize, na.rm = TRUE)
+      median_effect_size <- median(filtered$EffectSize, na.rm = TRUE)
+      min_effect_size <- min(filtered$EffectSize, na.rm = TRUE)
+      max_effect_size <- max(filtered$EffectSize, na.rm = TRUE)
+
+      mean_mean_effect <- mean(filtered$Mean_Effect, na.rm = TRUE)
+      median_mean_effect <- median(filtered$Mean_Effect, na.rm = TRUE)
+
+      min_qvalue <- min(filtered$q.value, na.rm = TRUE)
+      max_qvalue <- max(filtered$q.value, na.rm = TRUE)
+
+      # Top 5 genes by effect size (most negative)
+      top_genes <- filtered %>%
+        arrange(EffectSize) %>%
+        head(5)
+
+      # Top 5 genes by mean effect score (most negative)
+      top_genes_mean_effect <- filtered %>%
+        arrange(Mean_Effect) %>%
+        head(5)
+    } else {
+      mean_effect_size <- median_effect_size <- min_effect_size <- max_effect_size <- NA
+      mean_mean_effect <- median_mean_effect <- NA
+      min_qvalue <- max_qvalue <- NA
+      top_genes <- NULL
+      top_genes_mean_effect <- NULL
+    }
+
+    # Count cell lines in selected lineages
+    total_cell_lines <- 0
+    if (!is.null(meta.data()) && !is.null(input$lineage_column) && input$lineage_column %in% colnames(meta.data())) {
+      total_cell_lines <- sum(meta.data()[[input$lineage_column]] %in% input$cellline)
+    }
+
+    # ChEA3 results
+    if (!is.null(chea3_data) && length(chea3_data) > 0) {
+      int_chea3 <- NULL
+      for (item in chea3_data) {
+        if (is.data.frame(item) && "Rank" %in% names(item) && "Score" %in% names(item)) {
+          int_chea3 <- item
+          break
+        }
+      } 
+
+      int_chea3$Rank <- as.numeric(int_chea3$Rank)
+      top_chea3 <- int_chea3 %>%
+        select(Rank, TF, Score, Overlapping_Genes) %>%
+        arrange(Rank) %>% 
+        head(5)
+    }
+    else {
+      top_chea3 <- NULL
+    }
+    
+    div(
+      # Row 1: Overview cards
+      div(
+        class = "row",
+        div(
+          class = "col-md-4",
+          div(
+            style = "background: #f0f7ff; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+            h5(icon("dna"), " Selected Cell Lineages", style = "color: #667eea; margin-top: 0;"),
+            p(strong(paste(input$cellline, collapse = ", ")), style = "font-size: 14px; margin: 0;"),
+            p(em(paste(length(input$cellline), "lineage(s),", total_cell_lines, "cell line(s)")),
+              style = "font-size: 12px; color: #6c757d; margin: 5px 0 0 0;")
+          )
+        ),
+        div(
+          class = "col-md-4",
+          div(
+            style = "background: #f0fff4; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+            h5(icon("list"), " Genes Passing Filters", style = "color: #48bb78; margin-top: 0;"),
+            p(strong(filtered_genes), " of ", total_genes, " total genes",
+              style = "font-size: 16px; margin: 0;"),
+            p(em(paste0(round(100 * filtered_genes / total_genes, 2), "% of total")),
+              style = "font-size: 12px; color: #6c757d; margin: 5px 0 0 0;")
+          )
+        ),
+        div(
+          class = "col-md-4",
+          div(
+            style = "background: #fef3c7; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+            h5(icon("chart-bar"), " q-value Range", style = "color: #d97706; margin-top: 0;"),
+            if (filtered_genes > 0) {
+              tagList(
+                p(strong("Min: "), formatC(min_qvalue, format = "e", digits = 2),
+                  style = "font-size: 14px; margin: 0;"),
+                p(strong("Max: "), formatC(max_qvalue, format = "e", digits = 2),
+                  style = "font-size: 14px; margin: 5px 0 0 0;")
+              )
+            } else {
+              p("No data", style = "font-size: 14px; margin: 0; color: #6c757d;")
+            }
+          )
+        )
+      ),
+
+      hr(),
+
+      # Row 2: Effect statistics
+      div(
+        class = "row",
+        div(
+          class = "col-md-6",
+          div(
+            style = "background: #fdf2f8; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+            h5(icon("arrows-alt-h"), " Effect Size Statistics (Filtered)", style = "color: #be185d; margin-top: 0;"),
+            if (filtered_genes > 0) {
+              tags$table(
+                style = "width: 100%; font-size: 14px;",
+                tags$tr(tags$td(strong("Mean:")), tags$td(round(mean_effect_size, 4))),
+                tags$tr(tags$td(strong("Median:")), tags$td(round(median_effect_size, 4))),
+                tags$tr(tags$td(strong("Min:")), tags$td(round(min_effect_size, 4))),
+                tags$tr(tags$td(strong("Max:")), tags$td(round(max_effect_size, 4)))
+              )
+            } else {
+              p("No filtered genes to display", style = "margin: 0; color: #6c757d;")
+            }
+          )
+        ),
+        div(
+          class = "col-md-6",
+          div(
+            style = "background: #ecfdf5; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+            h5(icon("calculator"), " Mean Effect Statistics (Filtered)", style = "color: #059669; margin-top: 0;"),
+            if (filtered_genes > 0) {
+              tags$table(
+                style = "width: 100%; font-size: 14px;",
+                tags$tr(tags$td(strong("Mean:")), tags$td(round(mean_mean_effect, 4))),
+                tags$tr(tags$td(strong("Median:")), tags$td(round(median_mean_effect, 4)))
+              )
+            } else {
+              p("No filtered genes to display", style = "margin: 0; color: #6c757d;")
+            }
+          )
+        )
+      ),
+
+      hr(),
+
+      # Row 3: Top genes table
+      if (filtered_genes > 0 && !is.null(top_genes) && nrow(top_genes) > 0) {
+        div(
+          style = "background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+          h5(icon("trophy"), "  Top 5 Genes by Effect Size", style = "color: #475569; margin-top: 0;"),
+          tags$table(
+            class = "table table-striped table-sm",
+            style = "font-size: 13px; margin-bottom: 0;",
+            tags$thead(
+              tags$tr(
+                tags$th("Gene"),
+                tags$th("Effect Size"),
+                tags$th("Mean Effect"),
+                tags$th("q-value")
+              )
+            ),
+            tags$tbody(
+              lapply(1:nrow(top_genes), function(i) {
+                tags$tr(
+                  tags$td(strong(top_genes$Gene[i])),
+                  tags$td(round(top_genes$EffectSize[i], 4)),
+                  tags$td(round(top_genes$Mean_Effect[i], 4)),
+                  tags$td(formatC(top_genes$q.value[i], format = "e", digits = 2))
+                )
+              })
+            )
+          )
+        )
+      },
+
+      # Row 4: Top genes table, effect score
+      if (filtered_genes > 0 && !is.null(top_genes_mean_effect) && nrow(top_genes_mean_effect) > 0) {
+        div(
+          style = "background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+          h5(icon("trophy"), "  Top 5 Genes by Mean Effect Score", style = "color: #475569; margin-top: 0;"),
+          tags$table(
+            class = "table table-striped table-sm",
+            style = "font-size: 13px; margin-bottom: 0;",
+            tags$thead(
+              tags$tr(
+                tags$th("Gene"),
+                tags$th("Effect Size"),
+                tags$th("Mean Effect"),
+                tags$th("q-value")
+              )
+            ),
+            tags$tbody(
+              lapply(1:nrow(top_genes_mean_effect), function(i) {
+                tags$tr(
+                  tags$td(strong(top_genes_mean_effect$Gene[i])),
+                  tags$td(round(top_genes_mean_effect$EffectSize[i], 4)),
+                  tags$td(round(top_genes_mean_effect$Mean_Effect[i], 4)),
+                  tags$td(formatC(top_genes_mean_effect$q.value[i], format = "e", digits = 2))
+                )
+              })
+            )
+          )
+        )
+      },
+
+      # Row 5: Top TFs table, ChEA3
+      if (!is.null(top_chea3) && nrow(top_chea3) > 0) {
+        div(
+          style = "background: #f8fafc; padding: 15px; border-radius: 6px; margin-bottom: 15px;",
+          h5(icon("trophy"), "  Top 5 TFs by ChEA3 Rank", style = "color: #475569; margin-top: 0;"),
+          h5("    (based on genes and pathway selected in ChEA3 TF Analysis tab)", style = "color: #94a3b8; font-style: italic; margin-top: 0; font-size: 12px;"),
+          tags$table(
+            class = "table table-striped table-sm",
+            style = "font-size: 13px; margin-bottom: 0;",
+            tags$thead(
+              tags$tr(
+                tags$th("Rank"),
+                tags$th("TF"),
+                tags$th("Score"),
+                tags$th("Overlapping Genes")
+              )
+            ),
+            tags$tbody(
+              lapply(1:nrow(top_chea3), function(i) {
+                tags$tr(
+                  tags$td(strong(top_chea3$Rank[i])),
+                  tags$td(strong(top_chea3$TF[i])),
+                  tags$td(strong(top_chea3$Score[i])),
+                  tags$td(strong(top_chea3$Overlapping_Genes[i]))
+                )
+              })
+            )
+          )
+        )
+      } 
+      else {
+         p("Please run ChEA3 for top TFs", style = "color: #94a3b8; font-style: italic;")
+      },
+
+      hr(),
+
+      h5("Filter Criteria Applied:", style = "margin-top: 20px;"),
+      tags$ul(
+        style = "line-height: 2;",
+        tags$li(strong("q-value threshold: "), input$pvalue),
+        tags$li(strong("Mean effect score cutoff: "), input$mean_effect),
+        tags$li(strong("Effect size cutoff: "), input$effect_size)
+      )
+    )
+  })
+
+  # Download ChEA3 results
+  output$download_chea3 <- downloadHandler(
+    filename = function() {
+      paste0("chea3_results_", Sys.Date(), ".xlsx")
+    },
+    content = function(file) {
+      req(chea3_results())
+
+      wb <- createWorkbook()
+      results <- chea3_results()
+
+      # Add each result set as a sheet
+      sheet_num <- 1
+      for (i in seq_along(results)) {
+        item <- results[[i]]
+        if (is.data.frame(item) && nrow(item) > 0) {
+          sheet_name <- names(results)[i]
+          if (is.null(sheet_name) || sheet_name == "") {
+            sheet_name <- paste0("Results_", sheet_num)
+          }
+          # Truncate sheet name to 31 characters (Excel limit)
+          sheet_name <- substr(sheet_name, 1, 31)
+          addWorksheet(wb, sheet_name)
+          writeData(wb, sheet_name, item)
+          sheet_num <- sheet_num + 1
+        }
+      }
+
+      saveWorkbook(wb, file, overwrite = TRUE)
+    }
+  )
 
   # Download enrichment results
   output$download_enrichment <- downloadHandler(
